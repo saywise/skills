@@ -1,31 +1,33 @@
 ---
 name: saywise-chat-stats
-description: Use this on chat surfaces (Claude Desktop, claude.ai, mobile) when the user asks to measure their Claude chat usage. Counts conversations via the built-in recent-chats tool — aggregate numbers only (sessions, active days, date range) — and shows them to the user. Measurement only — nothing is uploaded anywhere. In Claude Code or Cowork, use the saywise-stats skill instead.
+description: Use this on chat surfaces (Claude Desktop, claude.ai, mobile) when the user asks to measure their Claude chat usage. Counts conversations via the built-in recent-chats tool — aggregate numbers only (sessions, active days, date range) — and shows them to the user. Measurement only — nothing is uploaded anywhere. In Claude Code or Cowork, use the saywise-usage skill instead.
 ---
 
 # Measuring Claude chat usage
 
-The chat-surface counterpart of `saywise-stats`. That skill scans local Claude Code
-session logs with a bundled script; chat surfaces have no local logs and no filesystem,
-but they do have the built-in conversation-history tools. This skill uses those instead.
+The chat-surface counterpart of `saywise-usage`. That skill scans local Claude Code
+and Codex CLI session logs with a bundled script; chat surfaces have no local logs and
+no filesystem, but they do have the built-in conversation-history tools. This skill
+uses those instead.
 
 ## When to trigger
 
-Same asks as `saywise-stats` — "measure my Claude usage", "how much do I use Claude?" —
-but on a surface where the **recent chats** tool is available and the `saywise-stats`
+Same asks as `saywise-usage` — "measure my Claude usage", "how much do I use Claude?" —
+but on a surface where the **recent chats** tool is available and the `saywise-usage`
 scan script is not runnable.
 
-- If you can run shell commands (Claude Code, Cowork), use `saywise-stats` — it measures
-  far more (tokens, tool calls, streaks, projects).
+- If you can run shell commands (Claude Code, Cowork), use `saywise-usage` — it measures
+  far more (tokens, tool calls, streaks, projects, Codex CLI) and can submit to Saywise.
 - If the recent-chats tool is not available either, say chat usage can't be measured
   here. Never estimate.
 - Never trigger spontaneously; only on an explicit ask.
 
 ## Measurement only
 
-This skill **counts and displays** — it uploads nothing. There is no submission
-integration yet; if the user asks to put the numbers on their Saywise profile, say
-that's coming and leave it there.
+This skill **counts and displays** — it uploads nothing. Chat surfaces have no
+submission path; if the user asks to put the numbers on their Saywise profile, point
+them at running `/saywise-usage` in Claude Code (which can submit via the saywise MCP
+server) or quoting the numbers in a post themselves.
 
 ## The privacy contract (non-negotiable)
 
@@ -65,5 +67,5 @@ streaks are not measurable from chat history — omit them; never fabricate.
 - **Don't submit anywhere.** There is no usage endpoint; do not call any tool with
   these numbers.
 - **Don't leak titles or snippets** — not in the summary, not in conversation.
-- **Don't run this in Claude Code/Cowork** — `saywise-stats` exists there and measures
+- **Don't run this in Claude Code/Cowork** — `saywise-usage` exists there and measures
   more, honestly.

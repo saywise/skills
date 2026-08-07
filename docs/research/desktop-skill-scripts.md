@@ -13,7 +13,7 @@ both need one empirical test before shipping.
 
 **Why this matters here:** this repo's `skills/saywise-chat-stats` skill counts chats via the built-in
 recent-chats tool. The plan is to bundle a deterministic parser (like
-`skills/saywise-stats/scripts/usage-scan.cjs`) so a user can upload their claude.ai data-export zip and
+`skills/saywise-usage/scripts/usage-scan.cjs`) so a user can upload their claude.ai data-export zip and
 the script computes aggregate-only stats (conversation/message counts, active days, streak, date range)
 in the sandbox — no improvised parsing by the model.
 
@@ -84,7 +84,7 @@ in the sandbox — no improvised parsing by the model.
   answer for the skill (bash + script in a Linux environment), different machine. Local files come via
   connected folders; cloud sessions reach device files through the Desktop app. — same URL as above.
 - **Claude Code:** skills are plain directories (`~/.claude/skills/`, `.claude/skills/`) with full
-  network — that's what `saywise-stats` already relies on. Custom skills do **not** sync across
+  network — that's what `saywise-usage` already relies on. Custom skills do **not** sync across
   surfaces; the chat-surface skill must be uploaded to claude.ai separately from this repo's plugin.
   — https://platform.claude.com/docs/en/agents-and-tools/agent-skills/overview
 

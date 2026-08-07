@@ -6,11 +6,12 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 The **saywise-skills** Claude Code plugin, distributed from this repo acting as its own marketplace (named `saywise`). It turns Claude Code / Cowork / Claude Desktop / Codex sessions into draft "AI Work stories" for the user's Saywise profile, and measures local AI usage. There is no build system, no package.json, and no test suite — the deliverables are Markdown skill files, four slash commands, two small Node hook scripts, and one bundled stats script.
 
-**Everything is local-only by design.** No skill posts, uploads, or transmits anything; drafts and stats are handed to the user, who posts them at saywise.com/posts/new themselves. This is a hard product constraint, restated in every skill — preserve it in any change.
+**Measurement and drafting are local by design.** No skill posts drafts or transmits session content; drafts are handed to the user, who posts them at saywise.com/posts/new themselves. The single sanctioned network path is `saywise-usage`'s opt-in submission of its script's aggregate JSON through the `saywise` MCP server (registered in `.mcp.json`), gated on explicit per-run user confirmation. This is a hard product constraint, restated in every skill — preserve both halves in any change.
 
 ## Layout
 
 - `.claude-plugin/plugin.json` — plugin manifest (name, version). `marketplace.json` — makes this repo installable as the `saywise` marketplace.
+- `.mcp.json` — registers the OAuth-protected `saywise` MCP server (https://staging.saywise.com/api/mcp/v1). At plugin root it is auto-discovered on plugin install; used only by `saywise-usage`'s opt-in stats submission.
 - `skills/<name>/SKILL.md` — the seven skills (see relationships below).
 - `commands/*.md` — the four slash commands; each is a thin wrapper that loads its skill and adds delivery instructions. Skills carry the real logic.
 - `hooks/hooks.json` — SessionEnd/SessionStart hooks bundled with the plugin, pointing at scripts inside `skills/saywise-scan/scripts/` via `${CLAUDE_PLUGIN_ROOT}`.
@@ -21,7 +22,7 @@ The **saywise-skills** Claude Code plugin, distributed from this repo acting as 
 - `unslop` is the shared anti-slop style contract. Every writing skill (`saywise-stories`, `saywise-article`, the scan skills) explicitly loads it before composing and runs its final pass. Changes to writing style rules belong there, not in the individual skills.
 - `saywise-stories` composes 1–2 drafts (post / article / stat) from the *current* session. `saywise-article` is the dedicated long-form lane (exactly one article). `saywise-scan` sweeps *recent* Claude Code / Codex transcripts and delegates composition to `saywise-stories` + `unslop`.
 - Chat-surface counterparts exist because Desktop/claude.ai has no filesystem or local logs: `saywise-chat-scan` and `saywise-chat-stats` use the built-in chat-history tools instead of scripts. Each pair's SKILL.md descriptions route between the two (shell available → local skill; chat surface → chat skill). Keep that routing consistent when editing either half.
-- `saywise-stats` runs the bundled `skills/saywise-stats/scripts/usage-scan.cjs` and forbids improvised parsers — deterministic, reproducible numbers are the point.
+- `saywise-usage` runs the bundled `skills/saywise-usage/scripts/usage-scan.cjs` (Claude Code + Codex CLI logs) and forbids improvised parsers — deterministic, reproducible numbers are the point. After displaying, it may submit the script's JSON via the `saywise` MCP server, but only on explicit per-run confirmation.
 
 ## The scan pipeline (hooks + state)
 
@@ -37,20 +38,20 @@ Hook script rules: every failure path exits 0 (a broken hook must never block a 
 
 ## Privacy contract
 
-The stats scripts and skills read **aggregate signals only**: timestamps, message types, model ids, token counters, tool-use block *names* — never prompts, conversation content, project names, file paths, or tool inputs. `usage-scan.cjs` is written to that contract (e.g. projects leave only a count); don't widen what it reads.
+The stats scripts and skills read **aggregate signals only**: timestamps, message/event types, model ids, token counters, tool-use block *names* — never prompts, conversation content, project names, file paths, or tool inputs. `usage-scan.cjs` is written to that contract for both log roots (e.g. projects leave only a count; Codex `cwd` is likewise never read); don't widen what it reads.
 
 ## Developing and testing
 
 No build/lint/test commands. To exercise the scripts directly:
 
 ```bash
-node skills/saywise-stats/scripts/usage-scan.cjs                    # prints the aggregate JSON
+node skills/saywise-usage/scripts/usage-scan.cjs                    # prints the aggregate JSON
 echo '{"transcript_path":"'$HOME'/.claude/projects/<dir>/<id>.jsonl"}' \
   | node skills/saywise-scan/scripts/enqueue-session.js             # simulate the SessionEnd hook
 node skills/saywise-scan/scripts/queue-nudge.js                     # prints the nudge if queue is non-empty
 ```
 
-Skills themselves are tested by installing the plugin and invoking them (`/saywise-draft`, `/saywise-scan`, `/saywise-stats`, `/saywise-article`).
+Skills themselves are tested by installing the plugin and invoking them (`/saywise-draft`, `/saywise-scan`, `/saywise-usage`, `/saywise-article`).
 
 ## Conventions
 
