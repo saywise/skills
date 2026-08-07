@@ -52,7 +52,9 @@ One or two images placed where they carry the story beat the same images stacked
 
 ## Deliver
 
-Present the finished piece — title on its own line, then the body — ready to copy. The title follows the same style contract: specific and sentence case ("Cutting our Lambda cold starts by 8x", not "A Journey of Optimization"). Point the user at the Saywise composer (https://saywise.com/posts/new) to post it, name the image placeholders they should fill with the editor's upload, and offer one round of edits. You post nothing yourself.
+Present the finished piece — title on its own line, then the body — ready to copy. The title follows the same style contract: specific and sentence case ("Cutting our Lambda cold starts by 8x", not "A Journey of Optimization"). Name the image placeholders the user should fill with the editor's upload, and offer one round of edits.
+
+Then offer once to add it to their Saywise profile: on an explicit yes, call the saywise MCP server's `saywise_create_suggested_drafts` tool with `sourceTool` (the product name of this session's tool) and `drafts: [{format: "article", title, body}]` — the article exactly as presented, placeholders included. It lands **private** as a Suggested Draft; the user accepts it on their profile (replacing placeholders with the editor's uploads there) before anything publishes. Echo the returned review link. If the server isn't connected, point them at `/mcp` or the manual composer at https://saywise.com/posts/new. Your composed article is the default — the tool's server-side `content` generation only on the user's explicit ask. If they decline, stop.
 
 ## Common pitfalls
 

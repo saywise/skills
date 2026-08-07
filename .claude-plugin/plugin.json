@@ -1,7 +1,7 @@
 {
   "name": "saywise-skills",
-  "version": "0.14.0",
-  "description": "Turn Claude Code, Cowork, Claude Desktop, or Codex sessions into Saywise-ready AI Work story drafts — composed in your voice under an anti-slop style contract — and measure your local AI usage (aggregate-only, Claude Code + Codex CLI). Drafting stays local; you post drafts yourself. Usage stats can be submitted to your Saywise profile via the bundled MCP server, opt-in per run. Hooks (bundled for Claude Code, wireable on Codex CLI) queue story-worthy conversations as sessions end; unattended drafting is opt-in.",
+  "version": "0.15.0",
+  "description": "Turn Claude Code, Cowork, Claude Desktop, or Codex sessions into Saywise-ready AI Work story drafts — composed in your voice under an anti-slop style contract — and measure your local AI usage (aggregate-only, Claude Code + Codex CLI). Everything composes locally and is shown to you first; on your per-run ok, drafts land as private Suggested Drafts on your profile (you accept each before it publishes) and stats submit per tool, via the bundled Saywise MCP server. Hooks (bundled for Claude Code, wireable on Codex CLI) queue story-worthy conversations as sessions end; unattended drafting is opt-in and never transmits.",
   "author": {
     "name": "Saywise",
     "url": "https://saywise.com"

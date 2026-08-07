@@ -13,7 +13,7 @@ Trigger when the user asks to sweep their recent AI work rather than write up th
 - "Turn this week's work into Saywise drafts"
 - "/saywise-scan" (the explicit slash command — also the periodic entry point)
 
-The standing instruction this skill implements: **"if there is a new conversation worth turning into a Saywise story, draft it."** Drafts stay local — in chat or as files — until the user posts them on Saywise themselves.
+The standing instruction this skill implements: **"if there is a new conversation worth turning into a Saywise story, draft it."** Drafts stay local — in chat or as files — until the user says yes to submitting them (interactive runs only) or posts them on Saywise themselves.
 
 Do NOT trigger spontaneously. For writing up the _current_ session, use the `saywise-stories` skill instead.
 
@@ -62,8 +62,8 @@ For each selected conversation, follow the `saywise-stories` skill exactly — f
 
 Delivery depends on how you're running:
 
-- **Interactive session**: present each conversation's drafts under clear labels for the user to review and copy, and point them at the Saywise composer (https://saywise.com/posts/new) to post.
-- **Unattended run** (scheduled `claude -p "/saywise-scan"` — no user to hand drafts to): write each draft to `~/.claude/saywise/drafts/<YYYY-MM-DD>-<short-slug>.md` (create the directory if needed), with a one-line header naming the source session and format. Never compose anything you wouldn't show the user first anyway.
+- **Interactive session**: present each conversation's drafts under clear labels for the user to review, then follow the `saywise-stories` delivery contract — on the user's explicit yes, submit via the saywise MCP server's `saywise_create_suggested_drafts` tool, one call per conversation with that conversation's drafts, `sourceTool` from the transcript's host ("Claude Code" or "Codex"). The manual composer (https://saywise.com/posts/new) remains the fallback.
+- **Unattended run** (scheduled `claude -p "/saywise-scan"` — no user to hand drafts to): write each draft to `~/.claude/saywise/drafts/<YYYY-MM-DD>-<short-slug>.md` (create the directory if needed), with a one-line header naming the source session and format. Never call MCP tools in an unattended run — with no user present there is no consent, so drafts go to files only. Never compose anything you wouldn't show the user first anyway.
 
 ## Step 4 — report and update state
 

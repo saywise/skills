@@ -1,6 +1,6 @@
 ---
 name: saywise-stories
-description: Use this when the user asks to write up, post, or share their AI work as a Saywise story. Composes 1–2 ready-to-post story drafts from the current session — in the user's voice, under the unslop style contract — and presents them for the user to review and post on their Saywise profile.
+description: Use this when the user asks to write up, post, or share their AI work as a Saywise story. Composes 1–2 ready-to-post story drafts from the current session — in the user's voice, under the unslop style contract — presents them for review, and on the user's explicit yes submits them as private Suggested Drafts to their Saywise profile via the saywise MCP server (nothing publishes until they accept each one there).
 ---
 
 # Turning an AI Work session into Saywise story drafts
@@ -56,13 +56,28 @@ the stat.
 ## Deliver
 
 Present each draft under a clear label ("Post" / "Article" / "Stat") so the user can
-copy it as-is, then point them at their Saywise profile to post it — the composer lives
-at https://saywise.com/posts/new. Offer one round of edits if they want changes. Nothing
-is posted anywhere by you; the user publishes it themselves.
+read it as-is, and offer one round of edits. Then offer once: "Want me to add these to
+your Saywise profile as suggested drafts?"
+
+- **On an explicit yes**, call the saywise MCP server's `saywise_create_suggested_drafts`
+  tool in **compose mode**: `sourceTool` = the product name of the tool this session
+  runs in ("Claude Code", "Codex", …) and `drafts` = the approved drafts exactly as
+  presented — formats map 1:1 (post `{title?, body}` plain prose, article
+  `{title, body}` Markdown, stat `{value, label, caption?}`). The drafts land
+  **private** on the profile's AI Stack as Suggested Drafts — nothing publishes until
+  the user accepts each one there. Echo the returned review link.
+- **Your composed drafts are the default.** Only send raw session material instead
+  (the tool's `content` mode, where Saywise generates the drafts server-side) if the
+  user explicitly asks Saywise to generate for them — never as a silent fallback.
+- If the saywise MCP server is not connected or authenticated, tell the user to run
+  `/mcp`, pick `saywise`, and sign in — or hand them the drafts to post manually at
+  https://saywise.com/posts/new. The manual path always works.
+- If the user declines or says nothing, stop — the drafts are theirs to copy.
 
 ## Common pitfalls
 
 - **Don't ask the user "what should the title be?"** — pick one from the session context. They can change it when posting.
 - **Don't generate more than 2 drafts.** One strong draft beats three mediocre ones.
 - **Don't use stat without a real digit.** Invented stats are the fastest way to lose the user's trust.
-- **Don't post or upload anything.** Compose, present, stop — publishing is the user's move.
+- **Don't submit without an explicit yes this run.** Suggested drafts land private and publishing stays the user's accept on their profile, but sending them is still their call — no standing consent.
+- **Don't send session content server-side uninvited.** The tool's `content` mode ships the raw session to Saywise for generation — use it only when the user explicitly asks for that, never because composing feels hard.
