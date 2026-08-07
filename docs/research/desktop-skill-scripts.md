@@ -112,6 +112,11 @@ in the sandbox — no improvised parsing by the model.
   roles, model ids, token counts. Community export viewers consistently show per-message
   `sender`/`created_at` and no token counts, but that is secondary evidence. If it holds, the stat
   ceiling is: conversation/message counts, active days, streaks, date range — **no token or model stats**.
+- **Decision (2026-08-04): chat token usage is out of scope.** Token counts exist only server-side.
+  The one workaround — tokenizing exported message text to estimate — is rejected: it reads
+  conversation content (the bundled parsers never do), produces an estimate (both stats skills ban
+  them), and counts visible text only, missing system prompts, tool traffic, thinking, and cache —
+  most of what "token usage" means. The chat ceiling stays counts, active days, streaks, date range.
 
 ## Open questions
 
@@ -123,3 +128,7 @@ in the sandbox — no improvised parsing by the model.
    own export and inspecting it; freeze the parser's schema against that sample.
 4. **Skill zip size limit and per-conversation sandbox persistence** — no published numbers; test only if
    the skill grows beyond a few scripts.
+5. **Connected-folder route for real token stats** (unaffected by the chat-tokens decision) — in
+   Desktop local execution, host files reach the sandbox VM via connected folders. If `~/.claude` can
+   be connected (dotfolder pickability untested), a chat-surface skill could run the real
+   `usage-scan.cjs` against Claude Code logs from inside a Desktop chat.

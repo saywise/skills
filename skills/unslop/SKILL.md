@@ -1,6 +1,6 @@
 ---
 name: unslop
-description: Shared anti-slop style contract for prose - banned AI vocabulary (incl. engineering LLM-isms), structural and whole-piece tells, rhythm rules, and a final pass. Load before composing any post, article, or draft.
+description: Shared anti-slop style contract - banned AI vocabulary (incl. engineering LLM-isms), structural and whole-piece tells, voice calibration, editing guardrails, and a final pass. Load before composing or de-slopping any text.
 ---
 
 # unslop — the anti-slop style contract
@@ -9,8 +9,10 @@ The shared style contract for every Saywise writing skill (`saywise-stories`,
 `saywise-article`, the scan skills' drafts). Load it before composing; run its final
 pass before submitting. Sources: Wikipedia's editor-maintained _Signs of AI writing_
 catalog, corpus studies of LLM word frequencies (words like "delve" and "it's important
-to note" appear 50–269× more often in AI text than in human text), and the tech-writing
-LLM accent that survives even careful prompting.
+to note" appear 50–269× more often in AI text than in human text), the tech-writing
+LLM accent that survives even careful prompting, and the humanizer skill
+(github.com/blader/humanizer), which works the same Wikipedia catalog into an editing
+loop.
 
 ## The one principle
 
@@ -18,6 +20,15 @@ Slop is statistically average prose: correct, polished, and interchangeable. The
 never a synonym swap — it's replacing the vague thought with a specific one. A banned
 word marks a spot where the writing went generic; cut the thought or make it concrete.
 "Laundering" a tell ("delve" → "dive deep", "robust" → "battle-tested") is still slop.
+
+## Voice calibration
+
+When the user's own writing is available — previous Saywise posts, README prose, even
+their messages in this session — read it before composing and match its habits:
+sentence lengths, punctuation, recurring words, how paragraphs open. The sample
+outranks this contract's style rules. If the user writes em dashes everywhere, keep
+them; if their posts run terse, don't pad. Sounding like *them* beats scrubbing every
+tell.
 
 ## Banned vocabulary
 
@@ -27,7 +38,7 @@ sentence around a specific fact instead of substituting a synonym.
 **Verbs (figurative use):** delve, leverage, utilize, harness, foster, garner, bolster,
 underscore, highlight (as analysis), showcase, elevate, empower, unlock, unleash,
 streamline, supercharge, revolutionize, transform, navigate, embark, resonate,
-encompass, cultivate, boast ("boasts a").
+encompass, cultivate, boast ("boasts a"), enhance, align ("aligns with").
 
 **Nouns:** tapestry, testament, landscape, realm, journey, ecosystem (figurative),
 synergy, paradigm, cornerstone, beacon, treasure trove, game-changer, powerhouse,
@@ -36,7 +47,8 @@ insights (unqualified), interplay.
 **Adjectives:** crucial, pivotal, vital, paramount, robust, seamless, comprehensive,
 multifaceted, intricate, meticulous, vibrant, invaluable, unparalleled, renowned,
 groundbreaking, cutting-edge, state-of-the-art, transformative, ever-evolving,
-deeply rooted, rich (figurative), profound.
+deeply rooted, rich (figurative), profound, enduring, valuable (unqualified),
+key (figurative: "key insight").
 
 **Phrases:** it's important to note, it's worth noting/mentioning, in today's
 fast-paced world, in the world/realm/age/era of, at the end of the day, when it comes
@@ -44,7 +56,9 @@ to, let's dive in, dive deep, deep dive, buckle up, look no further, the best pa
 whether you're a X or a Y, not only X but also Y, aims to / strives to / seeks to,
 plays a crucial/key role, a key turning point, setting the stage for, marking a
 pivotal moment, part of a broader shift, in conclusion, ultimately, overall, that
-said, needless to say.
+said, needless to say, the real question is, what really matters, here's what you
+need to know, without further ado, in order to, due to the fact that, at this point
+in time, has the ability to.
 
 **Copula dodges:** "serves as", "stands as", "functions as", "acts as", "represents",
 "marks", "is a testament to". Write "is" and "are".
@@ -99,6 +113,20 @@ prose. Each entry: the tell → what to write instead.
 - **Wrap-up endings.** No conclusion paragraph, no "In conclusion", no
   challenges-and-future-outlook section, no moral. End on a specific: what surprised
   you, what you'd do differently, the one thing you'd tell the next person.
+- **False ranges.** "From the Big Bang to dark matter", "from startups to
+  enterprises" — "from X to Y" where X and Y sit on no real scale. Name the actual
+  items.
+- **Staccato stacks.** One clipped sentence lands a point. Three in a row ("No
+  config. No setup. No excuses.") is manufactured drama — write the plain clause
+  back in.
+- **Aphorism formulas.** "X is the Y of Z", "attention is the currency of…", "the
+  architecture of trust". Replace the formula with the concrete claim it gestures at.
+- **Fake-candid openers.** "Honestly?", "Here's the thing:", "Let's be honest" as a
+  theatrical pause before an ordinary point. A person being honest just says the
+  thing.
+- **Tailing negations and subjectless fragments.** "…, no guessing" clipped onto a
+  sentence; "No configuration file needed." as a whole one. Write the actor back in:
+  "you don't need a config file".
 
 ## Whole-piece tells
 
@@ -130,7 +158,10 @@ paragraph scale and above — after the word pass, reread the piece as a shape.
 - No bold-header bullet lists ("**Speed**: …") as the article's skeleton — prose
   carries stories; lists carry inventories.
 - Bold sparingly or never. No emoji as structure. No "Key takeaways" block.
-- Em dashes: fine occasionally; a tell in every paragraph.
+- Em dashes: fine occasionally; a tell in every paragraph. When trimming one, replace
+  it with a period, comma, colon, or parentheses, whichever the sentence wants.
+- No warm-up line after a heading that restates it ("## Performance" followed by
+  "Speed matters."). Start with the content.
 - Paragraphs of visibly different lengths. Seven same-size paragraphs is a tell on its
   own.
 
@@ -145,6 +176,23 @@ paragraph scale and above — after the word pass, reread the piece as a shape.
 - One idea can just end. Not every paragraph needs a summary sentence.
 - Keep at least one sentence a style guide would flag. If every sentence is polished,
   polish one down.
+
+## Editing text you didn't write
+
+The contract also runs standalone ("apply unslop to this"). Editing is not composing;
+two guardrails apply, both from the humanizer skill:
+
+- **Rewrite on clusters, not single tells.** One em dash means nothing; em dashes
+  plus a rule-of-three plus "vibrant tapestry" plus a conclusion section is a
+  confession. Polish, formal vocabulary, curly quotes, or one clipped sentence are
+  not evidence on their own.
+- **Preserve the human evidence.** Odd specifics ("the lawyer upstairs from my
+  dentist"), mixed feelings left unresolved, self-corrections and asides, era-bound
+  slang, deliberate quirks the writer could defend. Editing these away produces slop
+  of a different kind: text that sounds like no one.
+
+Leave quoted text, titles, and proper names alone even when they contain watched
+phrases — a phrase being discussed is not a phrase being used.
 
 ## The final pass (run before submitting)
 
@@ -163,3 +211,5 @@ paragraph scale and above — after the word pass, reread the piece as a shape.
    rest.
 9. Find where the piece admits sequence or uncertainty. If the work had either and
    the draft shows neither, put one back — a real one.
+10. When editing rather than composing: check each rewrite was forced by a cluster of
+    tells, and that the original's specifics, asides, and quirks survived.
