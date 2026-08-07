@@ -27,7 +27,8 @@ and only in Step 3, on the user's explicit confirmation.
 
 ## What's measurable where
 
-- **Claude Code (CLI, IDE) and Cowork** — full stats. Both run the Claude Code harness, so their sessions land in `~/.claude/projects/**/*.jsonl`.
+- **Claude Code (CLI, IDE extensions, and the Desktop app's Code tab)** — full stats. All of them write session transcripts to `~/.claude/projects/**/*.jsonl`.
+- **Cowork** — not verified. Where Cowork tasks store transcripts is undocumented; any that do land in `~/.claude/projects` are counted automatically, but don't tell the user Cowork usage is included.
 - **Codex CLI** — full stats minus project count and cache-write tokens (its logs in `~/.codex/sessions/**/*.jsonl` carry neither; its `input_tokens` already includes the cached subset).
 - **Cursor, other tools** — not yet. This skill has no parser for their logs; do not improvise one.
 - **Claude Desktop / claude.ai chat** — partially, via the sibling `saywise-chat-stats` skill: chat conversations are cloud-stored with no local transcripts, so that skill counts them with the built-in recent-chats tool instead. If the user asks from a chat surface where this skill's script can't run, hand off to `saywise-chat-stats`; never estimate usage from memory.
