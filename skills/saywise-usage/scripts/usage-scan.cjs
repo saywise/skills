@@ -1,132 +1,228 @@
-// Aggregate-only scan of local AI-tool session logs:
-//   Claude Code  ~/.claude/projects/**/*.jsonl
-//   Codex CLI    ~/.codex/sessions/**/*.jsonl
-// Reads timestamps, message/event types, model ids, token-usage counters, and
-// tool-call names. Never reads message content, tool arguments, project names,
-// cwd, or file paths — projects leave only a count, Codex cwd is never touched.
-const fs = require('fs');
-const path = require('path');
-const os = require('os');
-const readline = require('readline');
+#!/usr/bin/env node
+/*
+ * Saywise usage scanner — measures aggregate AI-tool usage from local session logs:
+ *   Claude Code  ~/.claude/projects/**\/*.jsonl   (including per-session subagent transcripts)
+ *   Codex CLI    ~/.codex/sessions/**\/*.jsonl
+ *
+ * Privacy contract: reads ONLY structural fields — entry/event types, timestamps,
+ * request / message / call ids, model ids, token counters, tool names, and the
+ * run_in_background boolean. It never reads conversation content, prompts, file
+ * paths, project names, cwd, or tool inputs, and its output contains only counts,
+ * timestamps, and model ids.
+ *
+ * Output: {"payloads": [...]} — one entry per source with data, each shaped exactly
+ * like the Saywise MCP saywise_submit_usage_stats input (usageStatsSubmitSchema,
+ * scanner v2 semantics: activity windows merged across sessions at >30-minute gaps,
+ * trailing 182-day dailyActiveMinutes series, current + longest streaks). Submit a
+ * payload verbatim or not at all. Errors go to stderr with exit code 1 — the script
+ * never fabricates numbers.
+ */
+'use strict';
 
+const fs = require('node:fs');
+const os = require('node:os');
+const path = require('node:path');
+const readline = require('node:readline');
+
+const SCANNER_VERSION = 'plugin-2';
 const CLAUDE_ROOT = path.join(os.homedir(), '.claude', 'projects');
 const CODEX_ROOT = path.join(os.homedir(), '.codex', 'sessions');
-const MAX_SESSION_MS = 12 * 3600_000; // clamp idle-open sessions
+const GAP_MS = 30 * 60 * 1000; // >30 min between entries = new activity window
+const MIN_WINDOW_MS = 60 * 1000; // a lone timestamp still counts as a minute of activity
+const DAY_MS = 24 * 60 * 60 * 1000;
+const DAILY_SERIES_DAYS = 182; // trailing window of the per-day series (26 weeks)
 
-function newAgg() {
+const EDIT_TOOLS = new Set(['Edit', 'Write', 'MultiEdit', 'NotebookEdit']);
+// 'Agent' is the current subagent tool name; older CLI versions wrote 'Task'.
+const AGENT_TOOLS = new Set(['Agent', 'Task']);
+
+function newState() {
   return {
     sessions: 0,
-    ms: 0,
-    first: null,
-    last: null,
-    days: new Set(),
-    weeks: new Map(),
+    projectCount: 0,
+    recentSessions: 0,
+    timestamps: [],
+    days: new Set(), // integer UTC day indexes (ms / DAY_MS)
     models: new Set(),
+    modelTokens: Object.create(null), // model id -> output tokens (deduped per response)
+    mcpServers: new Set(),
     inputTokens: 0,
     outputTokens: 0,
     cacheReadTokens: 0,
-    cacheWriteTokens: 0,
-    reasoningOutputTokens: 0,
-    totalTokens: 0,
-    seenUsage: new Set(),
+    cacheCreationTokens: 0,
     toolCalls: 0,
     fileEditCalls: 0,
     commandCalls: 0,
-    seenToolUse: new Set(),
+    subagentRuns: 0,
+    backgroundAgentRuns: 0,
+    mcpToolCalls: 0,
+    skillInvocations: 0,
+    planModeUses: 0,
+    webSearchCalls: 0,
+    webFetchCalls: 0,
   };
 }
 
-async function scanClaudeFile(file, agg) {
-  const rl = readline.createInterface({ input: fs.createReadStream(file), crlfDelay: Infinity });
-  let hasUser = false;
-  let hasAssistant = false;
-  let minTs = null;
-  let maxTs = null;
-  // Days come from actual entry timestamps, not a min→max fill: a resumed session
-  // would otherwise credit its idle gap days, and a 24h stride can step over the
-  // far side of midnight.
-  const fileDays = new Set();
+function fail(message) {
+  process.stderr.write(message + '\n');
+  process.exit(1);
+}
+
+function parseTs(value) {
+  if (typeof value !== 'string') return null;
+  const ms = Date.parse(value);
+  return Number.isFinite(ms) ? ms : null;
+}
+
+// ---------------------------------------------------------------------------
+// Claude Code source
+// ---------------------------------------------------------------------------
+
+function recordAssistant(state, entry, usageSeen, blockSeen) {
+  const message = entry.message;
+  if (!message || typeof message !== 'object') return;
+  const model =
+    typeof message.model === 'string' && message.model && !message.model.startsWith('<') ? message.model : null;
+  if (model) state.models.add(model);
+  // One API response is logged as several JSONL lines, each carrying the full usage
+  // block — dedupe per response before summing. Duplicates always sit within one
+  // file, so the seen-sets are per-file (bounds memory on huge histories).
+  const usageKey = (entry.requestId || '') + '|' + (message.id || '');
+  const usage = message.usage;
+  if (usage && typeof usage === 'object' && usageKey !== '|' && !usageSeen.has(usageKey)) {
+    usageSeen.add(usageKey);
+    state.inputTokens += usage.input_tokens || 0;
+    state.outputTokens += usage.output_tokens || 0;
+    state.cacheReadTokens += usage.cache_read_input_tokens || 0;
+    state.cacheCreationTokens += usage.cache_creation_input_tokens || 0;
+    if (model) state.modelTokens[model] = (state.modelTokens[model] || 0) + (usage.output_tokens || 0);
+  }
+  if (!Array.isArray(message.content)) return;
+  for (const block of message.content) {
+    if (!block || block.type !== 'tool_use' || typeof block.name !== 'string') continue;
+    const blockKey = (message.id || '') + ':' + (block.id || '');
+    if (blockKey === ':' || blockSeen.has(blockKey)) continue;
+    blockSeen.add(blockKey);
+    state.toolCalls += 1;
+    const name = block.name;
+    if (EDIT_TOOLS.has(name)) state.fileEditCalls += 1;
+    else if (name === 'Bash') state.commandCalls += 1;
+    if (AGENT_TOOLS.has(name)) {
+      state.subagentRuns += 1;
+      if (block.input && typeof block.input === 'object' && block.input.run_in_background === true) {
+        state.backgroundAgentRuns += 1;
+      }
+    } else if (name.startsWith('mcp__')) {
+      state.mcpToolCalls += 1;
+      const server = name.split('__')[1];
+      if (server) state.mcpServers.add(server);
+    } else if (name === 'Skill') state.skillInvocations += 1;
+    else if (name === 'ExitPlanMode') state.planModeUses += 1;
+    else if (name === 'WebSearch') state.webSearchCalls += 1;
+    else if (name === 'WebFetch') state.webFetchCalls += 1;
+  }
+}
+
+async function scanClaudeFile(state, file) {
+  const result = { hasUser: false, hasAssistant: false, maxTs: null };
+  const usageSeen = new Set();
+  const blockSeen = new Set();
+  const rl = readline.createInterface({ input: fs.createReadStream(file, 'utf8'), crlfDelay: Infinity });
   for await (const line of rl) {
-    if (!line) continue;
-    // Cheap substring pre-filter: skips the huge non-message lines (tool results,
-    // file snapshots) without paying for a full JSON.parse on each.
-    if (!line.includes('"type":"user"') && !line.includes('"type":"assistant"')) continue;
+    // Cheap substring pre-filter: only conversation entries matter, and the CLI writes
+    // compact JSON, so both spellings below are literal. Top-level type is re-checked
+    // after parsing, so a content string containing either marker cannot miscount.
+    const maybeUser = line.includes('"type":"user"');
+    const maybeAssistant = line.includes('"type":"assistant"');
+    if (!maybeUser && !maybeAssistant) continue;
     let entry;
     try {
       entry = JSON.parse(line);
     } catch {
       continue;
     }
-    if (entry.type !== 'user' && entry.type !== 'assistant') continue;
-    if (entry.type === 'user') hasUser = true;
-    else hasAssistant = true;
-    const ts = Date.parse(entry.timestamp);
-    if (!Number.isNaN(ts)) {
-      if (minTs === null || ts < minTs) minTs = ts;
-      if (maxTs === null || ts > maxTs) maxTs = ts;
-      fileDays.add(new Date(ts).toISOString().slice(0, 10));
-    }
-    if (entry.type === 'assistant' && entry.message) {
-      const model = entry.message.model;
-      // '<synthetic>' marks locally generated messages, not a model.
-      if (typeof model === 'string' && model && !model.startsWith('<')) agg.models.add(model);
-      // Tool-call counters read only each block's type/name/id — never its input. Block
-      // ids are globally unique, so the Set dedupes replayed lines exactly.
-      if (Array.isArray(entry.message.content)) {
-        for (const block of entry.message.content) {
-          if (!block || block.type !== 'tool_use' || typeof block.id !== 'string') continue;
-          if (agg.seenToolUse.has(block.id)) continue;
-          agg.seenToolUse.add(block.id);
-          agg.toolCalls += 1;
-          if (block.name === 'Bash') agg.commandCalls += 1;
-          else if (['Edit', 'Write', 'MultiEdit', 'NotebookEdit'].includes(block.name)) agg.fileEditCalls += 1;
-        }
-      }
-      const usage = entry.message.usage;
-      if (usage && typeof usage.output_tokens === 'number') {
-        // A multi-block API response is logged as several lines sharing one request and
-        // message id, each carrying the full usage block — count tokens once per response.
-        const key = (entry.requestId || '') + ':' + (entry.message.id || '');
-        if (key === ':' || !agg.seenUsage.has(key)) {
-          if (key !== ':') agg.seenUsage.add(key);
-          agg.inputTokens += usage.input_tokens || 0;
-          agg.outputTokens += usage.output_tokens || 0;
-          agg.cacheReadTokens += usage.cache_read_input_tokens || 0;
-          agg.cacheWriteTokens += usage.cache_creation_input_tokens || 0;
-          agg.totalTokens +=
-            (usage.input_tokens || 0) +
-            (usage.output_tokens || 0) +
-            (usage.cache_read_input_tokens || 0) +
-            (usage.cache_creation_input_tokens || 0);
-        }
-      }
+    if (!entry || (entry.type !== 'user' && entry.type !== 'assistant')) continue;
+    const ms = parseTs(entry.timestamp);
+    if (ms === null) continue;
+    state.timestamps.push(ms);
+    state.days.add(Math.floor(ms / DAY_MS));
+    if (result.maxTs === null || ms > result.maxTs) result.maxTs = ms;
+    if (entry.type === 'user') result.hasUser = true;
+    else {
+      result.hasAssistant = true;
+      recordAssistant(state, entry, usageSeen, blockSeen);
     }
   }
-  if (hasUser && hasAssistant && minTs !== null && maxTs !== null) {
-    agg.sessions += 1;
-    agg.ms += Math.min(maxTs - minTs, MAX_SESSION_MS);
-    if (agg.first === null || minTs < agg.first) agg.first = minTs;
-    if (agg.last === null || maxTs > agg.last) agg.last = maxTs;
-    for (const day of fileDays) agg.days.add(day);
-    const weekStart = utcMonday(minTs);
-    agg.weeks.set(weekStart, (agg.weeks.get(weekStart) || 0) + 1);
+  return result;
+}
+
+// Per-session subagent transcripts: <session-uuid>/subagents/agent-*.jsonl.
+// Their tokens/tool calls count; they never count as sessions.
+async function scanSubagentDir(state, sessionDir) {
+  const subagentsPath = path.join(sessionDir, 'subagents');
+  let subFiles;
+  try {
+    subFiles = fs.readdirSync(subagentsPath, { withFileTypes: true });
+  } catch {
+    return;
+  }
+  for (const sub of subFiles) {
+    if (sub.isFile() && sub.name.endsWith('.jsonl')) await scanClaudeFile(state, path.join(subagentsPath, sub.name));
   }
 }
 
+async function scanClaude(state, root, now) {
+  let projectDirs;
+  try {
+    projectDirs = fs.readdirSync(root, { withFileTypes: true }).filter((e) => e.isDirectory());
+  } catch {
+    return;
+  }
+  for (const project of projectDirs) {
+    const projectPath = path.join(root, project.name);
+    let entries;
+    try {
+      entries = fs.readdirSync(projectPath, { withFileTypes: true });
+    } catch {
+      continue;
+    }
+    let hasSession = false;
+    for (const entry of entries) {
+      const entryPath = path.join(projectPath, entry.name);
+      if (entry.isFile() && entry.name.endsWith('.jsonl')) {
+        // A main session file. Counts as a session only when a real conversation
+        // happened (>=1 user and >=1 assistant entry with valid timestamps).
+        const result = await scanClaudeFile(state, entryPath);
+        if (result.hasUser && result.hasAssistant && result.maxTs !== null) {
+          state.sessions += 1;
+          hasSession = true;
+          if (now - result.maxTs <= 7 * DAY_MS) state.recentSessions += 1;
+        }
+      } else if (entry.isDirectory()) {
+        await scanSubagentDir(state, entryPath);
+      }
+    }
+    if (hasSession) state.projectCount += 1;
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Codex CLI source
+// ---------------------------------------------------------------------------
+
 // Codex rollout lines are {"timestamp", "type", "payload"}. Only presence and
 // aggregate signals are read: payload.type, payload.role, payload.model,
-// payload.name, payload.call_id, and payload.info token counters — never
-// message text, arguments, or cwd.
+// payload.name, payload.call_id, and payload.info token counters — never message
+// text, arguments, or cwd.
 const CODEX_TOOL_TYPES = new Set(['function_call', 'local_shell_call', 'custom_tool_call', 'web_search_call']);
 const CODEX_SHELL_NAMES = new Set(['shell', 'exec_command', 'shell_command']);
 
-async function scanCodexFile(file, agg) {
-  const rl = readline.createInterface({ input: fs.createReadStream(file), crlfDelay: Infinity });
+async function scanCodexFile(state, file, now) {
+  const rl = readline.createInterface({ input: fs.createReadStream(file, 'utf8'), crlfDelay: Infinity });
   let hasUser = false;
   let hasAssistant = false;
-  let minTs = null;
   let maxTs = null;
-  const fileDays = new Set();
+  const callSeen = new Set();
   // total_token_usage is cumulative per session — keep the last one seen. If the
   // counter ever resets mid-file (compaction/resume), "last" undercounts, which is
   // the acceptable direction (never inflate). Files with only last_token_usage
@@ -134,19 +230,19 @@ async function scanCodexFile(file, agg) {
   let cumulative = null;
   let deltaSum = null;
   for await (const line of rl) {
-    if (!line) continue;
-    if (!line.includes('"response_item"') && !line.includes('"event_msg"') && !line.includes('"turn_context"')) continue;
+    if (!line.includes('"response_item"') && !line.includes('"event_msg"') && !line.includes('"turn_context"'))
+      continue;
     let entry;
     try {
       entry = JSON.parse(line);
     } catch {
       continue;
     }
-    const payload = entry.payload;
+    const payload = entry && entry.payload;
     if (!payload || typeof payload !== 'object') continue;
     let isActivity = false;
     if (entry.type === 'turn_context') {
-      if (typeof payload.model === 'string' && payload.model) agg.models.add(payload.model);
+      if (typeof payload.model === 'string' && payload.model) state.models.add(payload.model);
     } else if (entry.type === 'event_msg') {
       if (payload.type === 'user_message') {
         hasUser = true;
@@ -159,7 +255,7 @@ async function scanCodexFile(file, agg) {
         const last = payload.info.last_token_usage;
         if (total && typeof total === 'object') cumulative = total;
         else if (last && typeof last === 'object') {
-          if (!deltaSum) deltaSum = { input_tokens: 0, cached_input_tokens: 0, output_tokens: 0, reasoning_output_tokens: 0, total_tokens: 0 };
+          if (!deltaSum) deltaSum = { input_tokens: 0, cached_input_tokens: 0, output_tokens: 0 };
           for (const k of Object.keys(deltaSum)) deltaSum[k] += typeof last[k] === 'number' ? last[k] : 0;
         }
       }
@@ -175,169 +271,180 @@ async function scanCodexFile(file, agg) {
       } else if (CODEX_TOOL_TYPES.has(payload.type)) {
         isActivity = true;
         const callId = typeof payload.call_id === 'string' ? payload.call_id : null;
-        if (!callId || !agg.seenToolUse.has(callId)) {
-          if (callId) agg.seenToolUse.add(callId);
-          agg.toolCalls += 1;
+        if (!callId || !callSeen.has(callId)) {
+          if (callId) callSeen.add(callId);
+          state.toolCalls += 1;
           const name = typeof payload.name === 'string' ? payload.name : '';
-          if (payload.type === 'local_shell_call' || CODEX_SHELL_NAMES.has(name)) agg.commandCalls += 1;
-          else if (name === 'apply_patch') agg.fileEditCalls += 1;
+          if (payload.type === 'local_shell_call' || CODEX_SHELL_NAMES.has(name)) state.commandCalls += 1;
+          else if (name === 'apply_patch') state.fileEditCalls += 1;
+          if (payload.type === 'web_search_call') state.webSearchCalls += 1;
         }
       }
     }
     if (isActivity) {
-      const ts = Date.parse(entry.timestamp);
-      if (!Number.isNaN(ts)) {
-        if (minTs === null || ts < minTs) minTs = ts;
-        if (maxTs === null || ts > maxTs) maxTs = ts;
-        fileDays.add(new Date(ts).toISOString().slice(0, 10));
+      const ms = parseTs(entry.timestamp);
+      if (ms !== null) {
+        state.timestamps.push(ms);
+        state.days.add(Math.floor(ms / DAY_MS));
+        if (maxTs === null || ms > maxTs) maxTs = ms;
       }
     }
   }
   const usage = cumulative || deltaSum;
   if (usage) {
     const input = typeof usage.input_tokens === 'number' ? usage.input_tokens : 0;
-    const output = typeof usage.output_tokens === 'number' ? usage.output_tokens : 0;
-    // OpenAI's input_tokens already includes the cached subset — cacheReadTokens
-    // is informational, not additive.
-    agg.inputTokens += input;
-    agg.outputTokens += output;
-    agg.cacheReadTokens += typeof usage.cached_input_tokens === 'number' ? usage.cached_input_tokens : 0;
-    agg.reasoningOutputTokens += typeof usage.reasoning_output_tokens === 'number' ? usage.reasoning_output_tokens : 0;
-    agg.totalTokens += typeof usage.total_tokens === 'number' && usage.total_tokens > 0 ? usage.total_tokens : input + output;
+    const cached = typeof usage.cached_input_tokens === 'number' ? usage.cached_input_tokens : 0;
+    // Codex input_tokens INCLUDES the cached subset — split it so the payload's
+    // four token fields are disjoint and sum exactly to totalTokens, matching the
+    // submit schema's invariant. output_tokens already includes reasoning tokens.
+    state.inputTokens += Math.max(0, input - cached);
+    state.cacheReadTokens += Math.min(cached, input);
+    state.outputTokens += typeof usage.output_tokens === 'number' ? usage.output_tokens : 0;
   }
-  if (hasUser && hasAssistant && minTs !== null && maxTs !== null) {
-    agg.sessions += 1;
-    agg.ms += Math.min(maxTs - minTs, MAX_SESSION_MS);
-    if (agg.first === null || minTs < agg.first) agg.first = minTs;
-    if (agg.last === null || maxTs > agg.last) agg.last = maxTs;
-    for (const day of fileDays) agg.days.add(day);
-    const weekStart = utcMonday(minTs);
-    agg.weeks.set(weekStart, (agg.weeks.get(weekStart) || 0) + 1);
+  if (hasUser && hasAssistant && maxTs !== null) {
+    state.sessions += 1;
+    if (now - maxTs <= 7 * DAY_MS) state.recentSessions += 1;
   }
 }
 
-async function walkCodex(dir, agg) {
-  for (const ent of fs.readdirSync(dir, { withFileTypes: true })) {
+async function scanCodex(state, dir, now) {
+  let entries;
+  try {
+    entries = fs.readdirSync(dir, { withFileTypes: true });
+  } catch {
+    return;
+  }
+  for (const ent of entries) {
     const p = path.join(dir, ent.name);
-    if (ent.isDirectory()) await walkCodex(p, agg);
-    else if (ent.isFile() && ent.name.endsWith('.jsonl')) await scanCodexFile(p, agg);
+    if (ent.isDirectory()) await scanCodex(state, p, now);
+    else if (ent.isFile() && ent.name.endsWith('.jsonl')) await scanCodexFile(state, p, now);
   }
 }
 
-function utcMonday(ts) {
-  const daysFromMonday = (new Date(ts).getUTCDay() + 6) % 7;
-  return new Date(ts - daysFromMonday * 86_400_000).toISOString().slice(0, 10);
-}
+// ---------------------------------------------------------------------------
+// Payload assembly (usageStatsSubmitSchema shape, scanner v2 semantics)
+// ---------------------------------------------------------------------------
 
-function longestStreak(days) {
-  let best = 0;
-  let run = 0;
-  let prev = null;
-  for (const day of [...days].sort()) {
-    const ts = Date.parse(day);
-    run = prev !== null && ts - prev === 86_400_000 ? run + 1 : 1;
-    prev = ts;
-    if (run > best) best = run;
+function buildPayload(source, state, generatedAtMs) {
+  if (state.sessions === 0 || state.timestamps.length === 0) return null;
+
+  // Active time: merge ALL timestamps globally (so parallel sessions never
+  // double-count), split at >30-minute gaps, floor each window at one minute.
+  const ts = Float64Array.from(state.timestamps).sort();
+  const windows = [];
+  let windowStart = ts[0];
+  let prev = ts[0];
+  for (let i = 1; i < ts.length; i++) {
+    if (ts[i] - prev > GAP_MS) {
+      windows.push([windowStart, prev]);
+      windowStart = ts[i];
+    }
+    prev = ts[i];
   }
-  return best;
-}
+  windows.push([windowStart, prev]);
 
-function finalizeSource(source, agg, extra) {
+  // Total active time and the per-day split come from the SAME windows so they can't
+  // disagree: each window's real span is allocated across the UTC days it covers, and
+  // the one-minute floor's shortfall is booked on the window's start day.
+  let activeMs = 0;
+  const dayActiveMs = new Map(); // integer UTC day index -> active ms
+  for (const w of windows) {
+    const span = Math.max(w[1] - w[0], MIN_WINDOW_MS);
+    activeMs += span;
+    const startDay = Math.floor(w[0] / DAY_MS);
+    for (let d = startDay, last = Math.floor(w[1] / DAY_MS); d <= last; d++) {
+      const overlap = Math.min(w[1], (d + 1) * DAY_MS) - Math.max(w[0], d * DAY_MS);
+      if (overlap > 0) dayActiveMs.set(d, (dayActiveMs.get(d) || 0) + overlap);
+    }
+    const shortfall = span - (w[1] - w[0]);
+    if (shortfall > 0) dayActiveMs.set(startDay, (dayActiveMs.get(startDay) || 0) + shortfall);
+  }
+
+  // Streaks over the sorted UTC day set: the current one (ending at the most recent
+  // active day) and the longest run anywhere in the logs.
+  const days = Array.from(state.days).sort((a, b) => a - b);
+  let streakDays = 1;
+  for (let i = days.length - 1; i > 0; i--) {
+    if (days[i] - days[i - 1] !== 1) break;
+    streakDays += 1;
+  }
+  let longestStreakDays = 1;
+  let run = 1;
+  for (let i = 1; i < days.length; i++) {
+    run = days[i] - days[i - 1] === 1 ? run + 1 : 1;
+    if (run > longestStreakDays) longestStreakDays = run;
+  }
+
+  // Trailing per-day series, oldest first, anchored at generatedAt's UTC day.
+  const endDay = Math.floor(generatedAtMs / DAY_MS);
+  const dailyActiveMinutes = [];
+  for (let d = endDay - DAILY_SERIES_DAYS + 1; d <= endDay; d++) {
+    dailyActiveMinutes.push(Math.min(1440, Math.round((dayActiveMs.get(d) || 0) / 60000)));
+  }
+
+  // The 25 cap mirrors models.max(25) in the submit schema; modelUsage is filtered to
+  // the emitted list so the two can't disagree, and sorted by usage (id as tiebreak).
+  const models = Array.from(state.models).sort().slice(0, 25);
+  const modelSet = new Set(models);
+  const modelUsage = Object.keys(state.modelTokens)
+    .filter((m) => modelSet.has(m))
+    .map((m) => ({ model: m, outputTokens: state.modelTokens[m] }))
+    .sort((a, b) => b.outputTokens - a.outputTokens || (a.model < b.model ? -1 : 1));
+
   return {
     source,
-    sessions: agg.sessions,
-    activeDays: agg.days.size,
-    totalHours: Math.round((agg.ms / 3600_000) * 10) / 10,
-    firstActivityAt: new Date(agg.first).toISOString(),
-    lastActivityAt: new Date(agg.last).toISOString(),
-    models: [...agg.models].sort().slice(0, 20),
-    // Older transcript formats carry no usage blocks — omit rather than report 0.
-    ...(agg.totalTokens > 0
-      ? {
-          inputTokens: agg.inputTokens,
-          outputTokens: agg.outputTokens,
-          cacheReadTokens: agg.cacheReadTokens,
-          ...(agg.cacheWriteTokens > 0 ? { cacheWriteTokens: agg.cacheWriteTokens } : {}),
-          ...(agg.reasoningOutputTokens > 0 ? { reasoningOutputTokens: agg.reasoningOutputTokens } : {}),
-          totalTokens: agg.totalTokens,
-        }
-      : {}),
-    longestStreakDays: longestStreak(agg.days),
-    ...(extra || {}),
-    weeklySessions: [...agg.weeks.entries()]
-      .sort(([a], [b]) => (a < b ? -1 : 1))
-      .slice(-200)
-      .map(([weekStart, sessions]) => ({ weekStart, sessions })),
-    toolCalls: agg.toolCalls,
-    fileEditCalls: agg.fileEditCalls,
-    commandCalls: agg.commandCalls,
+    scannerVersion: SCANNER_VERSION,
+    generatedAt: new Date(generatedAtMs).toISOString(),
+    sessions: state.sessions,
+    projectCount: state.projectCount,
+    activeDays: state.days.size,
+    streakDays,
+    longestStreakDays,
+    sessionsLast7Days: state.recentSessions,
+    totalHours: Math.round((activeMs / (60 * 60 * 1000)) * 10) / 10,
+    firstActivityAt: new Date(ts[0]).toISOString(),
+    lastActivityAt: new Date(ts[ts.length - 1]).toISOString(),
+    models,
+    // Codex tokens are per-session cumulative counters, not per-response — per-model
+    // attribution is not measurable there, and the field is optional.
+    ...(modelUsage.length > 0 ? { modelUsage } : {}),
+    dailyActiveMinutes,
+    inputTokens: state.inputTokens,
+    outputTokens: state.outputTokens,
+    cacheReadTokens: state.cacheReadTokens,
+    cacheCreationTokens: state.cacheCreationTokens,
+    totalTokens: state.inputTokens + state.outputTokens + state.cacheReadTokens + state.cacheCreationTokens,
+    toolCalls: state.toolCalls,
+    fileEditCalls: state.fileEditCalls,
+    commandCalls: state.commandCalls,
+    subagentRuns: state.subagentRuns,
+    backgroundAgentRuns: state.backgroundAgentRuns,
+    mcpToolCalls: state.mcpToolCalls,
+    mcpServersUsed: state.mcpServers.size,
+    skillInvocations: state.skillInvocations,
+    planModeUses: state.planModeUses,
+    webSearchCalls: state.webSearchCalls,
+    webFetchCalls: state.webFetchCalls,
   };
 }
 
-(async () => {
-  const haveClaude = fs.existsSync(CLAUDE_ROOT);
-  const haveCodex = fs.existsSync(CODEX_ROOT);
-  if (!haveClaude && !haveCodex) {
-    console.error('No Claude Code logs found at ' + CLAUDE_ROOT + ' and no Codex logs found at ' + CODEX_ROOT);
-    process.exit(1);
+async function main() {
+  const now = Date.now();
+  const claudeState = newState();
+  const codexState = newState();
+  await scanClaude(claudeState, CLAUDE_ROOT, now);
+  await scanCodex(codexState, CODEX_ROOT, now);
+
+  const payloads = [];
+  const claudePayload = buildPayload('claude_code', claudeState, now);
+  if (claudePayload) payloads.push(claudePayload);
+  const codexPayload = buildPayload('codex', codexState, now);
+  if (codexPayload) payloads.push(codexPayload);
+
+  if (payloads.length === 0) {
+    return fail('No completed sessions found under ' + CLAUDE_ROOT + ' or ' + CODEX_ROOT);
   }
+  process.stdout.write(JSON.stringify({ payloads }, null, 2) + '\n');
+}
 
-  const sources = [];
-  const aggs = [];
-
-  if (haveClaude) {
-    const agg = newAgg();
-    let projectCount = 0;
-    for (const dir of fs.readdirSync(CLAUDE_ROOT, { withFileTypes: true })) {
-      if (!dir.isDirectory()) continue;
-      const dirPath = path.join(CLAUDE_ROOT, dir.name);
-      const sessionsBefore = agg.sessions;
-      for (const f of fs.readdirSync(dirPath)) {
-        if (f.endsWith('.jsonl')) await scanClaudeFile(path.join(dirPath, f), agg);
-      }
-      if (agg.sessions > sessionsBefore) projectCount += 1;
-    }
-    if (agg.sessions > 0) {
-      sources.push(finalizeSource('claude_code', agg, { projectCount }));
-      aggs.push(agg);
-    }
-  }
-
-  if (haveCodex) {
-    const agg = newAgg();
-    await walkCodex(CODEX_ROOT, agg);
-    if (agg.sessions > 0) {
-      sources.push(finalizeSource('codex', agg));
-      aggs.push(agg);
-    }
-  }
-
-  if (sources.length === 0) {
-    console.error('No completed sessions found under ' + CLAUDE_ROOT + ' or ' + CODEX_ROOT);
-    process.exit(1);
-  }
-
-  const allDays = new Set();
-  for (const agg of aggs) for (const day of agg.days) allDays.add(day);
-  const sum = (key) => aggs.reduce((n, agg) => n + agg[key], 0);
-  const totalTokens = sum('totalTokens');
-  const totals = {
-    sessions: sum('sessions'),
-    activeDays: allDays.size,
-    totalHours: Math.round((sum('ms') / 3600_000) * 10) / 10,
-    ...(totalTokens > 0
-      ? {
-          inputTokens: sum('inputTokens'),
-          outputTokens: sum('outputTokens'),
-          cacheReadTokens: sum('cacheReadTokens'),
-          // Codex logs carry no cache-write counter — omit rather than report a
-          // misleading 0 when no source measured it.
-          ...(sum('cacheWriteTokens') > 0 ? { cacheWriteTokens: sum('cacheWriteTokens') } : {}),
-          totalTokens,
-        }
-      : {}),
-    toolCalls: sum('toolCalls'),
-  };
-
-  console.log(JSON.stringify({ sources, totals }, null, 2));
-})();
+main().catch((err) => fail(String((err && err.message) || err)));
