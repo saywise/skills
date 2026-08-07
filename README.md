@@ -65,6 +65,8 @@ claude plugin install saywise-skills@saywise
 
 That's the full setup — skills, slash commands, the automatic-scanning hooks, and the Saywise MCP server (used only for opt-in usage submission). The first submission asks you to authenticate: run `/mcp`, pick `saywise`, and finish the browser sign-in.
 
+This one install covers every surface that reads the local `~/.claude` config: the CLI, the IDE extensions, and the Desktop app's **Code** tab.
+
 ### Any agent (skills CLI)
 
 The skills also install standalone into 25+ agents (Claude Code, Cursor, Codex, Copilot, Gemini CLI, …) via the [open agent skills ecosystem](https://skills.sh):
@@ -75,6 +77,8 @@ npx skills add saywise/skills --skill saywise-article   # just one
 ```
 
 ### Claude Desktop / claude.ai
+
+Cowork and chat don't see a CLI install: they load skills and plugins from your claude.ai account (Settings → Customize), not from the CLI's local `~/.claude` — so install there separately.
 
 **Cowork** runs the full Saywise plugin — no CLI needed: Settings → Customize → **Plugins** → **Add marketplace** → `https://github.com/saywise/skills`, then install `saywise-skills`. Every release also attaches `saywise-plugin.zip` — the whole plugin in one archive for the Plugins page's upload option, for when your network can't reach GitHub from the app (the marketplace URL is the surer path and auto-updates).
 
