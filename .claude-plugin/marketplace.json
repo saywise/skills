@@ -1,0 +1,15 @@
+{
+  "name": "saywise",
+  "description": "Saywise skills — draft AI Work stories in your voice and measure your AI usage, from Claude Code, Cowork, Claude Desktop, or Codex. Composed and computed locally, shown to you first; drafts and stats reach your profile only on your per-run ok via the bundled Saywise MCP server, and drafts stay private until you accept them.",
+  "owner": {
+    "name": "Saywise",
+    "url": "https://saywise.com"
+  },
+  "plugins": [
+    {
+      "name": "saywise-skills",
+      "description": "Draft AI Work stories under an anti-slop style contract and measure aggregate AI usage (Claude Code + Codex CLI) locally — on your ok, drafts land as private Suggested Drafts on your profile and stats submit per tool, via the bundled MCP server.",
+      "source": "./"
+    }
+  ]
+}
