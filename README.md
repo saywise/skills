@@ -1,28 +1,25 @@
 # Saywise skills
 
-Turn Claude Code, Cowork, Claude Desktop, or Codex sessions into **Saywise-ready AI Work story drafts** — composed in your voice under an anti-slop style contract — and measure your local AI usage (aggregate numbers only). Everything composes and computes locally and is shown to you first; on your say-so — per run — drafts land on your profile as **private Suggested Drafts** and usage stats submit per tool, both over the bundled Saywise MCP connection. Nothing publishes until you accept it on your profile. Six skills, two slash commands.
+A Claude Code plugin that turns your coding sessions into draft "AI Work stories" for your [Saywise](https://saywise.com) profile, and measures how much you actually use AI. It works in Claude Code, Cowork, Claude Desktop, and Codex.
 
-## What it does
+Drafts are composed locally, in your voice, and shown to you before anything moves. They land on your profile as **private Suggested Drafts** over the bundled Saywise MCP connection: you accept or dismiss each one there, and nothing publishes until you do. Say "don't submit" and nothing is sent at all. Usage stats are aggregate numbers only, submitted per tool and only when you confirm. Six skills, two slash commands.
 
-- **`saywise-stories`** — composes 1–2 story drafts (post / article / stat) from the current session, in your voice; the article format is the long-form lane, told as an actual story (stakes, wrong turns, a concrete resolution) with image placeholders you fill via the Saywise editor when posting. On your yes the drafts are submitted as private Suggested Drafts to your profile's AI Stack, where you accept each one before it publishes. Your agent's drafts are the default — Saywise's server-side generation runs only if you explicitly ask for it. Invoke it by asking ("write this up for my Saywise") or directly as the `saywise-stories` skill.
-- **`unslop`** — the shared anti-slop style contract every writing skill loads before composing: banned AI vocabulary (delve, tapestry, seamless…), the engineering LLM-isms ("surface" as a verb, "shape", "gate", "battle-tested"…), structural tells (rule of three, "-ing" analysis tails, negative parallelism), whole-piece tells (survey symmetry, kicker cadence, uniform confidence), voice calibration, guardrails for editing existing text, and a final pass. Distilled from Wikipedia's [Signs of AI writing](https://en.wikipedia.org/wiki/Wikipedia:Signs_of_AI_writing) catalog, LLM word-frequency studies, and the [humanizer](https://github.com/blader/humanizer) skill. No slash command — the other skills reference it, and "apply unslop to this" works standalone on any text.
-- **`saywise-scan` + `/saywise-scan`** — sweeps your **recent** Claude Code / Codex conversations (new since the last scan) and drafts stories from any that clear the bar — in chat when you run it, into `~/.claude/saywise/drafts/` when scheduled. Zero drafts is a valid outcome.
-- **`saywise-chat-scan`** — the same sweep for chat surfaces (Claude Desktop, claude.ai, or any assistant with a chat-history tool), where there are no local logs: it shortlists story-worthy conversations via the surface's history tools, you pick which to draft; when the Saywise MCP tools are connected there, approved drafts submit the same opt-in way.
-- **`saywise-usage` + `/saywise-usage`** — a deterministic, aggregate-only measurement of your Claude Code **and Codex CLI** usage: sessions, tokens split by input / output / cache read / cache write, per-model usage, tool-call counts (edits, commands, subagents, MCP, skills, plan mode, web), active hours from merged activity windows, a 26-week daily-activity series, current and longest streaks, projects, models. Computed locally by a bundled script and shown to you; then it offers — opt-in, per run — to submit each tool's payload to your Saywise profile via the bundled Saywise MCP server. **`saywise-chat-stats`** covers Desktop/claude.ai chat (sessions, active days, date range) via the built-in recent-chats tool.
+## The skills
 
-Drafts compose locally and are always shown to you first. On your explicit yes they're submitted over the authenticated Saywise MCP connection as private Suggested Drafts — nothing publishes until you accept each one on your profile — and `saywise-usage` submits your aggregate stats the same opt-in way. Those are the only transmissions; raw session content is sent only if you explicitly ask Saywise to generate drafts server-side. Prefer manual? The composer at [saywise.com/posts/new](https://saywise.com/posts/new) always works, and unattended scans only ever write local files.
+- **`saywise-stories`** — writes 1–2 drafts (post, article, or stat) from the current session. The article format is the long-form lane: told as a story, with placeholders marking where your real screenshots go. Ask ("write this up for my Saywise") or invoke `saywise-stories` directly.
+- **`unslop`** — the style contract every writing skill loads first: banned AI vocabulary, engineering LLM-isms, structural tells, a final pass. Distilled from Wikipedia's [Signs of AI writing](https://en.wikipedia.org/wiki/Wikipedia:Signs_of_AI_writing), LLM word-frequency studies, and the [humanizer](https://github.com/blader/humanizer) skill. Also works standalone: "apply unslop to this."
+- **`saywise-scan` + `/saywise-scan`** — sweeps Claude Code and Codex conversations that are new since the last scan and drafts the ones that clear the bar. Zero drafts is a fine outcome.
+- **`saywise-chat-scan`** — the same sweep for chat surfaces, which have no local logs. It shortlists story-worthy conversations from the surface's chat history and you pick which to draft.
+- **`saywise-usage` + `/saywise-usage`** — deterministic measurement of your Claude Code and Codex CLI usage from local session logs: sessions, tokens split by cache, tool calls, active hours, streaks, a 26-week activity series, per-model usage. A bundled script computes it, and you see every number before deciding whether to submit.
+- **`saywise-chat-stats`** — counts chat conversations (sessions, active days, date range) on surfaces where the script can't run. It measures and displays, and never submits anything.
 
-## Automatic scanning (Claude Code & Codex CLI)
+## Automatic scanning
 
-Two hooks make `/saywise-scan` mostly run itself:
+Two hooks make `/saywise-scan` mostly run itself. When a session ends, a local script pre-screens the conversation with cheap size-and-shape heuristics that never touch an LLM or the network, and queues the story-worthy ones. When your next session starts, a one-line note reports the queue so the agent can offer a scan.
 
-1. **When a session ends**, a local script pre-screens the conversation (size + shape heuristics — no LLM, no network, nothing leaves your machine) and queues story-worthy ones in `~/.claude/saywise/scan-queue.json`.
-2. **When your next session starts**, a one-line note reports the queue ("3 story-worthy conversations queued") so the agent can offer `/saywise-scan`.
-3. **Fully unattended drafting is opt-in.** After your first successful scan the skill offers auto-scan once; if you enable it (`{"autoScan": true}` in `~/.claude/saywise/config.json`), closing a session while story-worthy work is queued spawns a background scan on the host you were using — at most once every 6 hours, using that CLI's quota — and drafts land as plain Markdown files in `~/.claude/saywise/drafts/` for you to review and post. Set `autoScan` to `false` anytime to go back to nudges only.
+Fully unattended drafting is opt-in. After your first successful scan the skill offers auto-scan once; enable it and closing a session with queued work spawns a background scan, at most once every 6 hours, on that CLI's quota. Drafts land as Markdown files in `~/.claude/saywise/drafts/` — ask any session to submit the keepers. Set `autoScan` to `false` in `~/.claude/saywise/config.json` to go back to nudges.
 
-**Claude Code**: the hooks ship with the plugin (you'll see them listed at install) — nothing to wire.
-
-**Codex CLI**: Codex speaks the same hook contract but doesn't install plugin hooks, so wire them once in `~/.codex/hooks.json` (or an inline `[hooks]` table in `~/.codex/config.toml`), pointing at wherever `npx skills add saywise/skills` placed the `saywise-scan` skill — typically:
+On Claude Code the hooks ship with the plugin. Codex CLI speaks the same hook contract but doesn't install plugin hooks, so wire them once in `~/.codex/hooks.json` (or an inline `[hooks]` table in `~/.codex/config.toml`), pointing at wherever `npx skills add saywise/skills` placed the scan skill:
 
 ```json
 {
@@ -47,69 +44,36 @@ Two hooks make `/saywise-scan` mostly run itself:
 }
 ```
 
-(Codex caps `SessionEnd` hooks at 3 seconds — the script typically finishes in well under 100 ms. Adjust the paths if your skills installed elsewhere.) The same scripts detect which host a transcript came from, so scans, nudges, and auto-runs work identically; queue and state stay shared in `~/.claude/saywise/` across both.
-
-On other agents (Cursor, Gemini CLI, …) hooks aren't available — use the scan skill manually or on a schedule as documented inside it.
+Codex caps SessionEnd hooks at 3 seconds; the script typically finishes in under 100 ms. Queue and state live in `~/.claude/saywise/`, shared across both hosts. On agents without hooks, run the scan skill manually or on a schedule (documented inside the skill).
 
 ## Install
 
-### Claude Code
-
-Add the repo as a marketplace once, then install from it:
+**Claude Code** — add the repo as a marketplace once, then install:
 
 ```bash
 claude plugin marketplace add saywise/skills
 claude plugin install saywise-skills@saywise
 ```
 
-That's the full setup — skills, slash commands, the automatic-scanning hooks, and the Saywise MCP server (used only for the opt-in submissions: suggested drafts and usage stats). The first submission asks you to authenticate: run `/mcp`, pick `saywise`, and finish the browser sign-in.
+That covers the skills, commands, hooks, and the Saywise MCP server, on every surface that reads `~/.claude`: the CLI, the IDE extensions, and the Desktop app's Code tab. The first submission asks you to sign in — run `/mcp` and pick `Saywise`.
 
-This one install covers every surface that reads the local `~/.claude` config: the CLI, the IDE extensions, and the Desktop app's **Code** tab.
-
-### Any agent (skills CLI)
-
-The skills also install standalone into 25+ agents (Claude Code, Cursor, Codex, Copilot, Gemini CLI, …) via the [open agent skills ecosystem](https://skills.sh):
+**Any agent** — the skills also install standalone into 25+ agents (Cursor, Copilot, Gemini CLI, …) via [skills.sh](https://skills.sh):
 
 ```bash
-npx skills add saywise/skills            # all six skills
-npx skills add saywise/skills --skill saywise-stories   # just one
+npx skills add saywise/skills
 ```
 
-### Claude Desktop / claude.ai
-
-Cowork and chat don't see a CLI install: they load skills and plugins from your claude.ai account (Settings → Customize), not from the CLI's local `~/.claude` — so install there separately.
-
-**Cowork** runs the full Saywise plugin — no CLI needed: Settings → Customize → **Plugins** → **Add marketplace** → `https://github.com/saywise/skills`, then install `saywise-skills`. Every release also attaches `saywise-plugin.zip` — the whole plugin in one archive for the Plugins page's upload option, for when your network can't reach GitHub from the app (the marketplace URL is the surer path and auto-updates).
-
-**Plain chat**: any `skills/<name>` folder in this repo, zipped as-is, matches the Settings → Capabilities → **Skills** upload format — `saywise-chat-scan` and `saywise-chat-stats` are the chat-friendly ones.
+**Claude Desktop / claude.ai** — Cowork and chat load plugins from your claude.ai account, not from `~/.claude`, so install there separately: Settings → Customize → Plugins → Add marketplace → `https://github.com/saywise/skills`, then install `saywise-skills`. Every release also attaches `saywise-plugin.zip` for the upload option, for when the app can't reach GitHub. For plain chat, zip any `skills/<name>` folder from this repo and upload it under Settings → Capabilities → Skills; `saywise-chat-scan` and `saywise-chat-stats` are the chat-friendly ones.
 
 ## Use
 
-Ask:
-
 > "Write this session up for my Saywise."
 
-Or invoke the skill directly:
-
-```text
-/saywise-stories
-```
-
-The model composes 1–2 drafts, shows them to you, and — if you say yes — submits them to your profile as private Suggested Drafts. To sweep recent sessions instead of the current one:
-
-```text
-/saywise-scan
-```
-
-To measure your usage — and optionally push the aggregate numbers to your profile:
-
-```text
-/saywise-usage
-```
+Or directly: `/saywise-stories` for the current session, `/saywise-scan` for recent ones, `/saywise-usage` for the numbers.
 
 ## Privacy
 
-Everything runs on your machine (or inside your chat session). The scan skills read your local session logs and never upload them; the stats skills compute **aggregate numbers only** — timestamps, counts, model ids; never prompts, project names, file paths, or tool inputs — and show them to you. Transmission is limited to two MCP calls, each gated on your explicit yes in that run: composed drafts submitted as private Suggested Drafts (you accept each on your profile before anything publishes), and `saywise-usage`'s aggregate payloads. Raw session content leaves your machine only if you explicitly ask Saywise to generate drafts server-side; unattended runs never transmit anything.
+Everything runs on your machine or inside your chat session. The scan skills read local session logs and never upload them. Stats are aggregate only — timestamps, counts, token counters, model ids; never prompts, project names, file paths, or tool inputs. Exactly two things ever transmit, both over the authenticated MCP connection: composed drafts, created private for you to accept on your profile, and the usage payloads you approve per run. Raw session content leaves your machine only if you explicitly ask Saywise to generate drafts server-side. Unattended runs write local files and transmit nothing.
 
 ## Issues
 

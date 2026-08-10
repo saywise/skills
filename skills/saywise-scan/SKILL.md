@@ -13,7 +13,7 @@ Trigger when the user asks to sweep their recent AI work rather than write up th
 - "Turn this week's work into Saywise drafts"
 - "/saywise-scan" (the explicit slash command — also the periodic entry point)
 
-The standing instruction this skill implements: **"if there is a new conversation worth turning into a Saywise story, draft it."** Drafts stay local — in chat or as files — until the user says yes to submitting them (interactive runs only) or posts them on Saywise themselves.
+The standing instruction this skill implements: **"if there is a new conversation worth turning into a Saywise story, draft it."** Interactive runs show the drafts and create them as private Suggested Drafts on the user's profile (accepting each one there stays theirs; "don't submit" stops it); unattended runs only write local files.
 
 Do NOT trigger spontaneously. For writing up the _current_ session, use the `saywise-stories` skill instead.
 
@@ -64,7 +64,7 @@ For each selected conversation, follow the `saywise-stories` skill exactly — f
 
 Delivery depends on how you're running:
 
-- **Interactive session**: present each conversation's drafts under clear labels for the user to review, then follow the `saywise-stories` delivery contract — on the user's explicit yes, submit via the saywise MCP server's `saywise_create_suggested_drafts` tool, one call per conversation with that conversation's drafts, `sourceTool` from the transcript's host ("Claude Code" or "Codex"). The manual composer (https://saywise.com/posts/new) remains the fallback.
+- **Interactive session**: present each conversation's drafts under clear labels, then follow the `saywise-stories` delivery contract — create them via the Saywise MCP server's `saywise_create_suggested_drafts` tool, one call per conversation with that conversation's drafts, `sourceTool` from the transcript's host ("Claude Code" or "Codex"). They land private as Suggested Drafts for the user to accept or dismiss on their profile; an explicit "don't submit" stops submission. If the server isn't connected, point at `/mcp` — the old composer is deprecated, there is no manual path.
 - **Unattended run** (scheduled `claude -p "/saywise-scan"` — no user to hand drafts to): write each draft to `~/.claude/saywise/drafts/<YYYY-MM-DD>-<short-slug>.md` (create the directory if needed), with a one-line header naming the source session and format. Never call MCP tools in an unattended run — with no user present there is no consent, so drafts go to files only. Never compose anything you wouldn't show the user first anyway.
 
 ## Step 4 — report and update state
@@ -77,13 +77,13 @@ Also drain the queue: rewrite `scan-queue.json` with the triaged sessions remove
 
 If this run drafted something, the session is interactive, and `~/.claude/saywise/config.json` doesn't already have an `autoScan` key, offer ONE upgrade, plainly:
 
-> "Want this to run by itself? I can turn on auto-scan: when you close a session while story-worthy work is queued, a background scan drafts it into `~/.claude/saywise/drafts/` automatically (at most once every 6 hours). It uses your Claude Code quota, nothing leaves your machine, and you post drafts yourself. Say the word to enable."
+> "Want this to run by itself? I can turn on auto-scan: when you close a session while story-worthy work is queued, a background scan drafts it into `~/.claude/saywise/drafts/` automatically (at most once every 6 hours). It uses your Claude Code quota and nothing leaves your machine — ask in any session to submit the keepers to your profile. Say the word to enable."
 
 If yes, write `{ "autoScan": true }` to `~/.claude/saywise/config.json` (merge if the file exists). If no, write `{ "autoScan": false }` so the offer never repeats. To disable later: set it back to `false` — the queueing and nudges keep working either way.
 
 ## Running this periodically
 
-On Claude Code (bundled with the plugin) and Codex CLI (wired per the README) the hooks already handle cadence: SessionEnd queues story-worthy conversations, SessionStart surfaces the count, and the opt-in auto-scan (above) drafts unattended. Elsewhere, any scheduler that can run the CLI works — for example a weekly cron entry:
+On Claude Code (bundled with the plugin) and Codex CLI (wired per the README) the hooks already handle cadence: SessionEnd queues story-worthy conversations, SessionStart reports the count, and the opt-in auto-scan (above) drafts unattended. Elsewhere, any scheduler that can run the CLI works — for example a weekly cron entry:
 
 ```cron
 0 18 * * 5 SAYWISE_SCAN_RUN=1 claude -p "/saywise-scan"
@@ -97,6 +97,6 @@ The state file makes runs idempotent: an already-drafted session is never drafte
 
 - **Don't lower the bar to fill a quota.** Zero drafts is a valid result; the periodic run's job is filtering, not producing.
 - **Don't paste transcript content into drafts.** Distill, in the user's voice — same rule as `saywise-stories`.
-- **Don't post or upload anything.** Drafts go to the user (chat or local files); publishing is theirs.
+- **Don't publish anything.** Interactive submissions land private as Suggested Drafts — accepting each one on the profile stays the user's; unattended runs never call MCP tools and only write local files.
 - **Don't scan unsupported logs** — Claude Code and Codex CLI transcripts only, for now (no Cursor; Gemini CLI's session store rotates at 30 days and is not yet supported).
 - **Don't forget the state file**, or the next periodic run re-drafts the same sessions.

@@ -1,6 +1,6 @@
 {
   "mcpServers": {
-    "saywise": {
+    "Saywise": {
       "type": "http",
       "url": "https://saywise.com/api/mcp/v1"
     }

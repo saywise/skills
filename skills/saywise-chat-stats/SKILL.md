@@ -29,8 +29,7 @@ schema requires fields chat history cannot measure (tokens, tool calls, active h
 so no honest payload can be built here — never submit zeros or estimates in their
 place, even if a Saywise MCP server happens to be connected on this surface. If the
 user asks to put numbers on their Saywise profile, point them at running
-`/saywise-usage` in Claude Code (which measures the full payload and can submit it) or
-quoting these numbers in a post themselves.
+`/saywise-usage` in Claude Code — it measures the full payload and can submit it.
 
 ## The privacy contract (non-negotiable)
 

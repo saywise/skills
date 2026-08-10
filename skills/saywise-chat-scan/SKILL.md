@@ -70,20 +70,19 @@ it, a stat only when the chat contains a real number.
 
 ## Step 4 — deliver
 
-Present each draft under a clear label so the user can read it as-is, and offer one
-round of edits.
+Present each draft under a clear label so the user can read it as-is.
 
-- **If the saywise MCP tools are available on this surface** (a connected Saywise
+- **If the Saywise MCP tools are available on this surface** (a connected Saywise
   server exposing `saywise_create_suggested_drafts`), follow the `saywise-stories`
-  delivery contract: offer once, and on the user's explicit yes submit the approved
-  drafts in compose mode — `sourceTool` = the product name of this chat surface, one
-  call per conversation, each draft carrying its `format` discriminator. They land
-  **private** as Suggested Drafts; nothing publishes until the user accepts each one
-  on their profile. Echo the returned review link.
-- **Otherwise**, point the user at the Saywise composer
-  (https://saywise.com/posts/new) to post the drafts themselves.
-
-If the user declines or says nothing, stop — the drafts are theirs to copy.
+  delivery contract: create the drafts in compose mode in the same turn — `sourceTool`
+  = the product name of this chat surface, one call per conversation, each draft
+  carrying its `format` discriminator. They land **private** as Suggested Drafts;
+  nothing publishes until the user accepts each one on their profile. Echo the
+  returned review link. An explicit "don't submit" from the user stops submission —
+  then the drafts stay in chat.
+- **Otherwise**, say the drafts can't reach their profile from this surface — the
+  Saywise MCP connection is the only path (the old composer is deprecated) — and
+  leave them the drafts in chat.
 
 ## Repeat scans
 
@@ -97,6 +96,6 @@ when was that?"), and when unsure whether a chat was already drafted, ask the us
   invented.
 - **Don't mention sensitive chats**, even as "excluded" entries in the shortlist.
 - **Don't dump raw chat content into drafts** — the draft is composed, not pasted.
-- **Don't submit without an explicit yes this run**, and never through anything but
-  the saywise MCP tools — no yes, or no tools, means the composer link is the only
-  path.
+- **Don't submit through anything but the Saywise MCP tools**, and respect an
+  explicit "don't submit". No tools connected means the drafts stay in chat — the old
+  composer (saywise.com/posts/new) is deprecated; never link it.
