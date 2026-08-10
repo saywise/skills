@@ -1,6 +1,6 @@
 ---
 name: saywise-scan
-description: Use this when the user asks to scan their recent coding-agent conversations (Claude Code, Codex CLI) for work worth posting to Saywise — the initial run after installing the plugin, or a recurring "/saywise-scan" pass (manual or scheduled). Finds recent story-worthy sessions and composes drafts per the saywise-stories skill — presented in chat when interactive, written to ~/.claude/saywise/drafts/ when unattended.
+description: Use this when the user asks to scan their recent coding-agent conversations (Claude Code, Codex CLI) for work worth posting to Saywise — the initial run after installing the plugin, or a recurring "/saywise-scan" pass (manual or scheduled). Finds recent story-worthy sessions and composes drafts per the saywise-stories skill — presented in chat when interactive, written to ~/.claude/saywise/drafts/ when unattended. On a chat surface with no shell, use saywise-chat-scan instead.
 ---
 
 # Scanning recent conversations for Saywise stories
@@ -25,13 +25,15 @@ Keep a high-water mark at `~/.claude/saywise/scan-state.json`:
 { "lastScanAt": "2026-07-31T00:00:00.000Z", "draftedSessions": ["<project-dir>/<session-file>", "…"] }
 ```
 
+A session's key is the last two segments of its transcript path — `<project-dir>/<session-file>` for Claude Code, `<DD>/<rollout-file>` for Codex CLI — matching what the SessionEnd hook queues.
+
 - **No state file** → this is the initial run: consider sessions from the last 14 days.
 - **State file exists** → consider only sessions modified after `lastScanAt` and not in `draftedSessions`.
 - After a run (even one that drafts nothing), write the file back: `lastScanAt` = now, `draftedSessions` = previous list plus the sessions drafted this run, trimmed to the most recent 200 entries.
 
 ## Step 1 — enumerate candidates
 
-**Check the hook queue first.** The plugin's SessionEnd hook pre-screens every ended conversation and queues the story-worthy ones at `~/.claude/saywise/scan-queue.json` (`{ "sessions": [{ "key", "file", "host", "queuedAt" }], "lastAutoScanAt"? }`). If it exists and has sessions, those files ARE the candidate list — skip the filesystem walk.
+**Check the hook queue first.** The plugin's SessionEnd hook pre-screens every ended conversation and queues the story-worthy ones at `~/.claude/saywise/scan-queue.json` (`{ "sessions": [{ "key", "file", "host", "queuedAt" }], "lastAutoScanAt"? }`). If it exists and has sessions, those files ARE the candidate list — skip the filesystem walk. The triage cap below applies here too: if more than 8 are queued, take the 8 newest this run and leave the rest queued — Step 4 drains only what was triaged, so they come up next run.
 
 Otherwise (no queue file, or empty), walk by hand across every host whose logs exist:
 

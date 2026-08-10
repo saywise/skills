@@ -5,8 +5,8 @@ description: Shared anti-slop style contract - banned AI vocabulary (incl. engin
 
 # unslop — the anti-slop style contract
 
-The shared style contract for every Saywise writing skill (`saywise-stories`,
-`saywise-article`, the scan skills' drafts). Load it before composing; run its final
+The shared style contract for every Saywise writing skill (`saywise-stories`, the
+scan skills' drafts). Load it before composing; run its final
 pass before submitting. Sources: Wikipedia's editor-maintained _Signs of AI writing_
 catalog, corpus studies of LLM word frequencies (words like "delve" and "it's important
 to note" appear 50–269× more often in AI text than in human text), the tech-writing

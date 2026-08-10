@@ -2,7 +2,7 @@
   "mcpServers": {
     "saywise": {
       "type": "http",
-      "url": "https://staging.saywise.com/api/mcp/v1"
+      "url": "https://saywise.com/api/mcp/v1"
     }
   }
 }

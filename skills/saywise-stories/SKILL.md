@@ -12,7 +12,7 @@ Trigger when the user explicitly asks to write up, post, or share their work. Ex
 - "Write this up for my Saywise"
 - "Turn this session into an AI work story"
 - "Draft a post about what we just built"
-- "/saywise-draft" (the explicit slash command)
+- "/saywise-stories" (invoking the skill directly)
 
 Do NOT trigger:
 
@@ -33,10 +33,19 @@ feature, a lesson learned. Title optional; the body should stand on its own.
 ### `article` — long-form with a title
 
 The goal, the approach, the obstacles, the outcome — 200–400 words of Markdown
-(headings, lists, fenced code blocks, links; no embedded images — Saywise's editor
-handles image uploads when the user posts). Good for: a multi-step build, a non-trivial
-debug, a real architectural decision. For a full long-form pass — story structure,
-image placement — use the dedicated `saywise-article` skill instead.
+(headings, lists, fenced code blocks, links). Good for: a multi-step build, a
+non-trivial debug, a real architectural decision. Tell it as a story, not
+documentation: open on the specific moment it hurt (never scene-setting), spend the
+middle on the wrong turns and what they taught, resolve with specifics, and end on a
+specific — what surprised you, what you'd do differently — never a summary paragraph
+or a moral. The title is specific and sentence case ("Cutting our Lambda cold starts
+by 8x", not "A Journey of Optimization").
+
+**No embedded Markdown images** — images enter a Saywise article through the editor's
+upload when the user posts. Where one belongs, drop an italic placeholder naming the
+user's real artifact (`*[Add screenshot: the failing build matrix]*` — a committed
+diagram, a PR graph; never stock photos), and when handing the draft over, tell the
+user which placeholders to fill with the editor's upload.
 
 ### `stat` — a single hero number
 
@@ -47,7 +56,7 @@ the stat.
 
 ## How to write the content
 
-- **Write under the `unslop` contract.** Load the `unslop` skill (same plugin/repo) before composing and run its final pass on every draft — it bans the AI vocabulary and structural tells that make a post read machine-written. Tone target: a Slack post for an engineering team — specific, plain, slightly understated.
+- **Write under the `unslop` contract.** Load the `unslop` skill (same plugin/repo) before composing and run its final pass on every draft — it bans the AI vocabulary and structural tells that make a post read machine-written. If `unslop` isn't installed, ask the user to add it rather than approximating it from memory. Tone target: a Slack post for an engineering team — specific, plain, slightly understated.
 - **Use the user's voice.** First person ("I did X", "I shipped Y"), not third person ("Claude helped the user…"). Saywise is the user's profile; they're the author.
 - **Focus on what _the user_ did with AI**, not what AI produced for them. The interesting story is the user's judgment, iteration, and outcome — not the model's output.
 - **Never paste raw chat.** A transcript dump is not a story. Distill what happened into prose.
@@ -62,8 +71,9 @@ your Saywise profile as suggested drafts?"
 - **On an explicit yes**, call the saywise MCP server's `saywise_create_suggested_drafts`
   tool in **compose mode**: `sourceTool` = the product name of the tool this session
   runs in ("Claude Code", "Codex", …) and `drafts` = the approved drafts exactly as
-  presented — formats map 1:1 (post `{title?, body}` plain prose, article
-  `{title, body}` Markdown, stat `{value, label, caption?}`). The drafts land
+  presented. Every draft carries its `format` discriminator — post
+  `{format: "post", title?, body}` plain prose, article `{format: "article", title, body}`
+  Markdown, stat `{format: "stat", value, label, caption?}`. The drafts land
   **private** on the profile's AI Stack as Suggested Drafts — nothing publishes until
   the user accepts each one there. Echo the returned review link.
 - **Your composed drafts are the default.** Only send raw session material instead

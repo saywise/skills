@@ -20,9 +20,10 @@ Do NOT trigger spontaneously, without the user asking.
 
 Measurement stays on the user's machine. The scan reads **aggregate signals only** —
 from both log formats: timestamps, message and event types, model ids, token-usage
-counters, and tool-call names — never prompts, conversation content, tool arguments,
-project names, cwd, or file paths. Do not read into the logs beyond what the script
-extracts. The only thing that may ever leave the machine is the script's JSON output,
+counters, and tool-call names — never prompts, conversation content, tool arguments
+(the one exception: the `run_in_background` boolean on subagent launches, read to
+count background runs), project names, cwd, or file paths. Do not read into the logs
+beyond what the script extracts. The only thing that may ever leave the machine is the script's JSON output,
 and only in Step 3, on the user's explicit confirmation.
 
 ## What's measurable where
@@ -41,10 +42,10 @@ reports that source alone — present what it found without apology.
 Run the script bundled with this skill — in Claude Code:
 
 ```bash
-node "${CLAUDE_SKILL_DIR}/scripts/usage-scan.cjs"
+node "${CLAUDE_PLUGIN_ROOT}/skills/saywise-usage/scripts/usage-scan.cjs"
 ```
 
-(In other hosts, `scripts/usage-scan.cjs` sits next to this SKILL.md in the installed skill directory — run it from there.) Do not modify it and do not improvise your own parser — deterministic numbers are the point. It reads only timestamps, message/event types, model ids, per-response token counters, and tool names from the two log roots (including Claude Code's per-session subagent transcripts); never message content or tool inputs.
+(In other hosts — or wherever `CLAUDE_PLUGIN_ROOT` is unset — `scripts/usage-scan.cjs` sits next to this SKILL.md in the installed skill directory; run it from there.) Do not modify it and do not improvise your own parser — deterministic numbers are the point. It reads only timestamps, message/event types, model ids, per-response token counters, and tool names from the two log roots (including Claude Code's per-session subagent transcripts); never message content, and from tool inputs only the single `run_in_background` boolean on subagent launches (to count background runs) — nothing else.
 
 The script prints `{"payloads": [...]}` — one payload per source with data, each
 shaped exactly as the Saywise submit tool expects (`source`, `scannerVersion`,

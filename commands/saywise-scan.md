@@ -1,5 +1,5 @@
 ---
-description: Scan recent Claude Code conversations and draft Saywise stories from any that are worth it.
+description: Scan recent Claude Code and Codex CLI conversations and draft Saywise stories from any that are worth it.
 ---
 
 Load the `saywise-scan` skill, then follow it exactly: read the scan state file, enumerate sessions that are new since the last run, triage them locally against the saywise-stories bar, and for the strongest (at most 3) compose 1–2 drafts each — presented in chat when interactive, written to `~/.claude/saywise/drafts/` when unattended.
