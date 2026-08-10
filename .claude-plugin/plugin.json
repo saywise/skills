@@ -1,6 +1,6 @@
 {
   "name": "saywise-skills",
-  "version": "0.17.0",
+  "version": "0.18.0",
   "description": "Show how you actually use AI. Turns your AI conversations and projects into AI Work story drafts for your Saywise profile — written in your voice — and backs your AI Stack with measured usage numbers (aggregate counts only, nothing from your conversations). Everything composes locally and is shown to you; drafts land private on your profile and you accept each one before it publishes (\"don't submit\" always wins), stats submit only when you say so. Hooks quietly queue story-worthy sessions as you close them; unattended drafting is opt-in and never transmits.",
   "author": {
     "name": "Saywise",

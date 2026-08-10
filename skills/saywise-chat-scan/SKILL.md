@@ -56,13 +56,16 @@ scan, not a failure.
 
 ## Step 3 — draft the selected ones
 
-For each selected conversation, compose in the user's voice under the `unslop` skill's
-style contract — load it before composing; if it isn't installed, ask the user to add
-it rather than approximating it from memory. Ground every claim ONLY in what the
-history tools actually returned. Snippets are partial recall — keep claims modest, and
-never invent outcomes, numbers, or technical details the snippets don't show. If there
-isn't enough context for an honest draft, say so and suggest the user re-run the scan
-from inside that conversation instead.
+First get the best material the surface allows: if there is a tool that opens a full
+conversation, fetch the full text before drafting — search snippets alone are a
+reconstruction, not the chat. Then compose in the user's voice under the `unslop`
+skill's style contract — load it before composing; if it isn't installed, ask the user
+to add it rather than approximating it from memory. Ground every claim ONLY in what
+the history tools actually returned. Snippets are partial recall — keep claims modest,
+never invent outcomes, numbers, or technical details the snippets don't show, and tell
+the user the material is partial before anything goes to Saywise (that applies to both
+delivery lanes below). If there isn't enough context for an honest draft, say so and
+suggest the user re-run the scan from inside that conversation instead.
 
 Write 1–2 drafts per selected conversation, following the `saywise-stories` skill's
 formats: a short plain-prose post by default, an article only when the journey merits
@@ -74,12 +77,20 @@ Present each draft under a clear label so the user can read it as-is.
 
 - **If the Saywise MCP tools are available on this surface** (a connected Saywise
   server exposing `saywise_create_suggested_drafts`), follow the `saywise-stories`
-  delivery contract: create the drafts in compose mode in the same turn — `sourceTool`
+  delivery contract: create the drafts in `drafts` mode in the same turn — `sourceTool`
   = the product name of this chat surface, one call per conversation, each draft
   carrying its `format` discriminator. They land **private** as Suggested Drafts;
   nothing publishes until the user accepts each one on their profile. Echo the
   returned review link. An explicit "don't submit" from the user stops submission —
   then the drafts stay in chat.
+- **`content` mode — only on an explicit ask.** The same tool also accepts raw
+  material (`content`) for Saywise to generate the drafts server-side. Use it only
+  when the user explicitly asks Saywise to do the writing ("send it over, let Saywise
+  generate the drafts") — never as a fallback because composing feels hard. And say
+  which lane you're on: in content mode nothing is composed in chat, so tell the user
+  their first look at the drafts will be the Suggested Drafts on their profile, and
+  that what you're sending is your recall of the conversation — partial if it came
+  from snippets.
 - **Otherwise**, say the drafts can't reach their profile from this surface — the
   Saywise MCP connection is the only path (the old composer is deprecated) — and
   leave them the drafts in chat.
@@ -92,6 +103,9 @@ when was that?"), and when unsure whether a chat was already drafted, ask the us
 ## Common pitfalls
 
 - **Don't draft unpicked chats.** The shortlist-then-pick step is the consent gate.
+- **Don't switch lanes silently.** `drafts` mode is the default; `content` mode runs
+  only on the user's explicit ask, and when it does, say so — with nothing composed in
+  chat, the profile is the user's first look at the drafts.
 - **Don't pad thin recall into a rich story.** Modest and true beats detailed and
   invented.
 - **Don't mention sensitive chats**, even as "excluded" entries in the shortlist.

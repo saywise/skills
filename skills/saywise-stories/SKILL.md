@@ -68,7 +68,7 @@ Present each draft under a clear label ("Post" / "Article" / "Stat") so the user
 read it as-is, then create them on their profile in the same turn — Suggested Drafts
 are themselves the review step, so don't ask permission first:
 
-- Call the Saywise MCP server's `saywise_create_suggested_drafts` tool in **compose
+- Call the Saywise MCP server's `saywise_create_suggested_drafts` tool in **`drafts`
   mode**: `sourceTool` = the product name of the tool this session runs in ("Claude
   Code", "Codex", …) and `drafts` = the drafts exactly as presented. Every draft
   carries its `format` discriminator — post `{format: "post", title?, body}` plain
@@ -84,6 +84,8 @@ are themselves the review step, so don't ask permission first:
 - **Your composed drafts are the default.** Only send raw session material instead
   (the tool's `content` mode, where Saywise generates the drafts server-side) if the
   user explicitly asks Saywise to generate for them — never as a silent fallback.
+  When you do, say so: content mode composes nothing in chat, so the user's first
+  look at the drafts will be on their profile.
 - If the Saywise MCP server is not connected or authenticated, tell the user to run
   `/mcp`, pick `Saywise`, and sign in — then submit. There is no manual path: the old
   composer (saywise.com/posts/new) is deprecated, and Suggested Drafts are the only
