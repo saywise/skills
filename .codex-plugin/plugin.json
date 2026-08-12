@@ -1,7 +1,7 @@
 {
   "name": "saywise-skills",
-  "version": "0.18.0",
-  "description": "Turn Claude Code and Codex sessions into private Saywise story drafts and measure aggregate AI usage locally. Drafts stay private until accepted, stats submit only after confirmation, and unattended scans never transmit.",
+  "version": "0.19.0",
+  "description": "Turn AI sessions into private Saywise story drafts and measure Claude Code and Codex usage.",
   "author": {
     "name": "Saywise",
     "url": "https://saywise.com"
@@ -11,28 +11,30 @@
   "license": "MIT",
   "keywords": [
     "saywise",
-    "ai-work",
     "stories",
-    "usage-stats",
-    "claude-code",
-    "codex"
+    "ai work",
+    "usage analytics",
+    "chatgpt",
+    "codex",
+    "claude"
   ],
   "skills": "./skills/",
   "mcpServers": "./.mcp.json",
   "interface": {
-    "displayName": "Saywise Skills",
-    "shortDescription": "Private AI work drafts and measured usage stats",
-    "longDescription": "Turn completed Claude Code and Codex work into private Suggested Drafts for your Saywise profile, and measure aggregate local usage before choosing whether to submit it.",
+    "displayName": "Saywise",
+    "shortDescription": "AI work stories and measured usage",
+    "longDescription": "Turn ChatGPT, Codex, and Claude conversations into private Suggested Drafts for Saywise, and measure aggregate Claude Code and Codex usage locally before optional submission.",
     "developerName": "Saywise",
     "category": "Productivity",
     "capabilities": [
+      "Interactive",
       "Read",
       "Write"
     ],
     "websiteURL": "https://saywise.com",
     "defaultPrompt": [
-      "Write this session up for my Saywise profile.",
-      "Scan my recent coding sessions for story-worthy work.",
+      "Turn this AI work into a private Saywise story draft.",
+      "Scan my recent AI conversations for work worth sharing.",
       "Measure my Claude Code and Codex usage."
     ]
   }

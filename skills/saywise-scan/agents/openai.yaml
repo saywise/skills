@@ -1,0 +1,11 @@
+interface:
+  display_name: "Saywise Session Scan"
+  short_description: "Find story-worthy work in local AI sessions"
+  default_prompt: "Use $saywise-scan to find story-worthy work in my recent coding-agent sessions."
+dependencies:
+  tools:
+    - type: "mcp"
+      value: "Saywise"
+      description: "Saywise MCP server for private Suggested Drafts"
+      transport: "streamable_http"
+      url: "https://saywise.com/api/mcp/v1"

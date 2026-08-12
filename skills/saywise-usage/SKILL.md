@@ -1,6 +1,6 @@
 ---
 name: saywise-usage
-description: Use this when the user asks to measure or verify their AI-tool usage stats. Computes aggregate-only stats (sessions, tokens split by input/output/cache, tool calls incl. subagent/MCP/skill/plan-mode/web counters, active hours, daily activity, streaks, models) from local Claude Code and Codex CLI session logs, shows them, and — only on explicit confirmation — submits the per-source payloads via the Saywise MCP server's saywise_submit_usage_stats tool. On chat surfaces (Claude Desktop / claude.ai) use saywise-chat-stats instead.
+description: Use this when the user asks to measure or verify their AI-tool usage stats. Computes aggregate-only stats (sessions, tokens split by input/output/cache, tool calls incl. subagent/MCP/skill/plan-mode/web counters, active hours, daily activity, streaks, models) from local Claude Code and Codex CLI session logs, shows them, and — only on explicit confirmation — submits the per-source payloads via the Saywise MCP server's saywise_submit_usage_stats tool. On chat-only surfaces such as ChatGPT Chat/Work, Claude Desktop, or claude.ai, use saywise-chat-stats instead.
 ---
 
 # Measuring AI usage stats
@@ -12,7 +12,8 @@ Trigger when the user explicitly asks to measure their AI usage. Examples:
 - "Measure my Claude Code usage"
 - "What are my AI usage stats?"
 - "Verify my AI Stack numbers"
-- "/saywise-usage" (the explicit slash command)
+- `$saywise-usage` in Codex, `@saywise-usage` in ChatGPT, or `/saywise-usage`
+  in Claude (explicit invocation)
 
 Do NOT trigger spontaneously, without the user asking.
 
@@ -32,20 +33,30 @@ and only in Step 3, on the user's explicit confirmation.
 - **Cowork** — not verified. Where Cowork tasks store transcripts is undocumented; any that do land in `~/.claude/projects` are counted automatically, but don't tell the user Cowork usage is included.
 - **Codex CLI** — sessions, hours, streaks, daily activity, tokens (cached input is split out so the four token fields sum exactly), and shell / edit / web-search tool calls from `~/.codex/sessions/**/*.jsonl`. Its logs carry no project count, per-model token attribution, cache-write tokens, or Claude-harness counters (subagents, MCP, skills, plan mode) — those report 0 or are omitted, honestly.
 - **Cursor, other tools** — not yet. This skill has no parser for their logs; do not improvise one.
-- **Claude Desktop / claude.ai chat** — partially, via the sibling `saywise-chat-stats` skill: chat conversations are cloud-stored with no local transcripts, so that skill counts them with the built-in recent-chats tool instead. If the user asks from a chat surface where this skill's script can't run, hand off to `saywise-chat-stats`; never estimate usage from memory.
+- **ChatGPT Chat/Work, Claude Desktop, claude.ai, and mobile chat** — partially, via
+  the sibling `saywise-chat-stats` skill: cloud chats have no local transcripts, so
+  that skill counts them with the surface's conversation-history tools instead. If
+  this script can't run, hand off to `saywise-chat-stats`; never estimate from memory.
 
 A missing source is not an error: if only one of the two log roots exists, the script
 reports that source alone — present what it found without apology.
 
 ## Step 1 — compute the stats
 
-Run the script bundled with this skill — in Claude Code:
+Run the script bundled with this skill. Plugin installs expose `PLUGIN_ROOT` in Codex
+and `CLAUDE_PLUGIN_ROOT` in Claude Code:
 
 ```bash
-node "${CLAUDE_PLUGIN_ROOT}/skills/saywise-usage/scripts/usage-scan.cjs"
+node "${PLUGIN_ROOT:-${CLAUDE_PLUGIN_ROOT}}/skills/saywise-usage/scripts/usage-scan.cjs"
 ```
 
-(In other hosts — or wherever `CLAUDE_PLUGIN_ROOT` is unset — `scripts/usage-scan.cjs` sits next to this SKILL.md in the installed skill directory; run it from there.) Do not modify it and do not improvise your own parser — deterministic numbers are the point. It reads only timestamps, message/event types, model ids, per-response token counters, and tool names from the two log roots (including Claude Code's per-session subagent transcripts); never message content, and from tool inputs only the single `run_in_background` boolean on subagent launches (to count background runs) — nothing else.
+(For standalone skill installs, run `node scripts/usage-scan.cjs` from this skill's
+directory.) Do not modify it and do not improvise your own parser — deterministic
+numbers are the point. It reads only timestamps, message/event types, model ids,
+per-response token counters, and tool names from the two log roots (including Claude
+Code's per-session subagent transcripts); never message content, and from tool inputs
+only the single `run_in_background` boolean on subagent launches (to count background
+runs) — nothing else.
 
 The script prints `{"payloads": [...]}` — one payload per source with data, each
 shaped exactly as the Saywise submit tool expects (`source`, `scannerVersion`,
@@ -77,7 +88,8 @@ source updates the stored stats, so repeat runs are safe. Echo the server's
 confirmation back to the user.
 
 - If the Saywise MCP server is not connected or not authenticated, tell the user to
-  run `/mcp`, pick `Saywise`, and complete the browser sign-in — then offer again.
+  open the Saywise plugin's connection settings (or run `/mcp` in hosts that support
+  it) and complete the browser sign-in — then offer again.
 - The server also exposes `saywise_get_usage_stats_instructions`, which returns its
   own Claude-Code-only scanner. If `saywise_submit_usage_stats` rejects this skill's
   payload (schema drift), fall back to following those instructions for the

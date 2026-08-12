@@ -12,7 +12,8 @@ Trigger when the user explicitly asks to write up, post, or share their work. Ex
 - "Write this up for my Saywise"
 - "Turn this session into an AI work story"
 - "Draft a post about what we just built"
-- "/saywise-stories" (invoking the skill directly)
+- `$saywise-stories` in Codex, `@saywise-stories` in ChatGPT, or
+  `/saywise-stories` in Claude (invoking the skill directly)
 
 Do NOT trigger:
 
@@ -69,8 +70,8 @@ read it as-is, then create them on their profile in the same turn — Suggested 
 are themselves the review step, so don't ask permission first:
 
 - Call the Saywise MCP server's `saywise_create_suggested_drafts` tool in **`drafts`
-  mode**: `sourceTool` = the product name of the tool this session runs in ("Claude
-  Code", "Codex", …) and `drafts` = the drafts exactly as presented. Every draft
+  mode**: `sourceTool` = the product name of the tool this session runs in ("ChatGPT",
+  "Codex", "Claude Code", …) and `drafts` = the drafts exactly as presented. Every draft
   carries its `format` discriminator — post `{format: "post", title?, body}` plain
   prose, article `{format: "article", title, body}` Markdown, stat
   `{format: "stat", value, label, caption?}`. The drafts land **private** on the
@@ -86,10 +87,11 @@ are themselves the review step, so don't ask permission first:
   user explicitly asks Saywise to generate for them — never as a silent fallback.
   When you do, say so: content mode composes nothing in chat, so the user's first
   look at the drafts will be on their profile.
-- If the Saywise MCP server is not connected or authenticated, tell the user to run
-  `/mcp`, pick `Saywise`, and sign in — then submit. There is no manual path: the old
-  composer (saywise.com/posts/new) is deprecated, and Suggested Drafts are the only
-  way drafts reach a profile. Never link it.
+- If the Saywise MCP server is not connected or authenticated, tell the user to open
+  the Saywise plugin's connection settings (or run `/mcp` in hosts that support it)
+  and sign in — then submit. There is no manual path: the old composer
+  (saywise.com/posts/new) is deprecated, and Suggested Drafts are the only way drafts
+  reach a profile. Never link it.
 
 ## Common pitfalls
 

@@ -1,6 +1,6 @@
 ---
 name: saywise-scan
-description: Use this when the user asks to scan their recent coding-agent conversations (Claude Code, Codex CLI) for work worth posting to Saywise — the initial run after installing the plugin, or a recurring "/saywise-scan" pass (manual or scheduled). Finds recent story-worthy sessions and composes drafts per the saywise-stories skill — presented in chat when interactive, written to ~/.claude/saywise/drafts/ when unattended. On a chat surface with no shell, use saywise-chat-scan instead.
+description: Use this when the user asks to scan their recent coding-agent conversations (Claude Code, Codex CLI) for work worth posting to Saywise — the initial run after installing the plugin, or a recurring saywise-scan pass (manual or scheduled). Finds recent story-worthy sessions and composes drafts per the saywise-stories skill — presented in chat when interactive, written to ~/.claude/saywise/drafts/ when unattended. On ChatGPT Chat/Work or another chat surface without local transcript access, use saywise-chat-scan instead.
 ---
 
 # Scanning recent conversations for Saywise stories
@@ -11,7 +11,8 @@ Trigger when the user asks to sweep their recent AI work rather than write up th
 
 - "Scan my recent Claude/Codex sessions for anything worth posting"
 - "Turn this week's work into Saywise drafts"
-- "/saywise-scan" (the explicit slash command — also the periodic entry point)
+- `$saywise-scan` in Codex or `/saywise-scan` in Claude (explicit invocation and
+  the periodic entry point)
 
 The standing instruction this skill implements: **"if there is a new conversation worth turning into a Saywise story, draft it."** Interactive runs show the drafts and create them as private Suggested Drafts on the user's profile (accepting each one there stays theirs; "don't submit" stops it); unattended runs only write local files.
 
@@ -64,8 +65,8 @@ For each selected conversation, follow the `saywise-stories` skill exactly — f
 
 Delivery depends on how you're running:
 
-- **Interactive session**: present each conversation's drafts under clear labels, then follow the `saywise-stories` delivery contract — create them via the Saywise MCP server's `saywise_create_suggested_drafts` tool, one call per conversation with that conversation's drafts, `sourceTool` from the transcript's host ("Claude Code" or "Codex"). They land private as Suggested Drafts for the user to accept or dismiss on their profile; an explicit "don't submit" stops submission. If the server isn't connected, point at `/mcp` — the old composer is deprecated, there is no manual path.
-- **Unattended run** (scheduled `claude -p "/saywise-scan"` — no user to hand drafts to): write each draft to `~/.claude/saywise/drafts/<YYYY-MM-DD>-<short-slug>.md` (create the directory if needed), with a one-line header naming the source session and format. Never call MCP tools in an unattended run — with no user present there is no consent, so drafts go to files only. Never compose anything you wouldn't show the user first anyway.
+- **Interactive session**: present each conversation's drafts under clear labels, then follow the `saywise-stories` delivery contract — create them via the Saywise MCP server's `saywise_create_suggested_drafts` tool, one call per conversation with that conversation's drafts, `sourceTool` from the transcript's host ("Claude Code" or "Codex"). They land private as Suggested Drafts for the user to accept or dismiss on their profile; an explicit "don't submit" stops submission. If the server isn't connected, point at the Saywise plugin's connection settings (or `/mcp` where supported) — the old composer is deprecated, and there is no manual path.
+- **Unattended run** (scheduled through either CLI, with no user to hand drafts to): write each draft to `~/.claude/saywise/drafts/<YYYY-MM-DD>-<short-slug>.md` (create the directory if needed), with a one-line header naming the source session and format. Never call MCP tools in an unattended run — with no user present there is no consent, so drafts go to files only. Never compose anything you wouldn't show the user first anyway.
 
 ## Step 4 — report and update state
 
@@ -77,19 +78,24 @@ Also drain the queue: rewrite `scan-queue.json` with the triaged sessions remove
 
 If this run drafted something, the session is interactive, and `~/.claude/saywise/config.json` doesn't already have an `autoScan` key, offer ONE upgrade, plainly:
 
-> "Want this to run by itself? I can turn on auto-scan: when you close a session while story-worthy work is queued, a background scan drafts it into `~/.claude/saywise/drafts/` automatically (at most once every 6 hours). It uses your Claude Code quota and nothing leaves your machine — ask in any session to submit the keepers to your profile. Say the word to enable."
+> "Want this to run by itself? I can turn on auto-scan: when you close a session while story-worthy work is queued, a background scan drafts it into `~/.claude/saywise/drafts/` automatically (at most once every 6 hours). It uses the current CLI's quota and nothing leaves your machine — ask in any session to submit the keepers to your profile. Say the word to enable."
 
 If yes, write `{ "autoScan": true }` to `~/.claude/saywise/config.json` (merge if the file exists). If no, write `{ "autoScan": false }` so the offer never repeats. To disable later: set it back to `false` — the queueing and nudges keep working either way.
 
 ## Running this periodically
 
-On Claude Code and Codex CLI, the hooks bundled with the plugin handle cadence after the user trusts them: SessionEnd queues story-worthy conversations, SessionStart reports the count, and the opt-in auto-scan (above) drafts unattended. Elsewhere, any scheduler that can run the CLI works — for example a weekly cron entry:
+On Claude Code and Codex CLI, the plugin's trusted hooks handle cadence: SessionEnd
+queues story-worthy conversations, SessionStart reports the count, and the opt-in
+auto-scan (above) drafts unattended. Standalone skill installs can wire the hooks as
+documented in the README. Any scheduler that can run either CLI also works:
 
 ```cron
 0 18 * * 5 SAYWISE_SCAN_RUN=1 claude -p "/saywise-scan"
 ```
 
-(or `SAYWISE_SCAN_RUN=1 codex exec "Use the saywise-scan skill: scan recent conversations and draft Saywise stories."` from Codex.)
+```cron
+0 18 * * 5 SAYWISE_SCAN_RUN=1 codex exec "Use the saywise-scan skill: scan recent conversations and draft Saywise stories."
+```
 
 The state file makes runs idempotent: an already-drafted session is never drafted twice. Unattended runs always carry `SAYWISE_SCAN_RUN=1` in their environment (the auto-scan spawn sets it; cron entries set it as above) so the hooks stand down for the scan's own session.
 

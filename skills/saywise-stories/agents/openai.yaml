@@ -1,0 +1,11 @@
+interface:
+  display_name: "Saywise Stories"
+  short_description: "Turn AI work into private Saywise drafts"
+  default_prompt: "Use $saywise-stories to turn this AI work into a private Saywise story draft."
+dependencies:
+  tools:
+    - type: "mcp"
+      value: "Saywise"
+      description: "Saywise MCP server for private Suggested Drafts"
+      transport: "streamable_http"
+      url: "https://saywise.com/api/mcp/v1"

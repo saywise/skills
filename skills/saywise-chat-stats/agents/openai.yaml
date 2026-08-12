@@ -1,0 +1,4 @@
+interface:
+  display_name: "Saywise Chat Stats"
+  short_description: "Count activity across recent AI chats"
+  default_prompt: "Use $saywise-chat-stats to count my recent chat activity without uploading it."
