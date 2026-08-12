@@ -7,5 +7,14 @@
     "url": "https://saywise.com"
   },
   "homepage": "https://saywise.com",
-  "license": "MIT"
+  "repository": "https://github.com/saywise/skills",
+  "license": "MIT",
+  "keywords": [
+    "saywise",
+    "ai-work",
+    "stories",
+    "usage-stats",
+    "claude-code",
+    "codex"
+  ]
 }

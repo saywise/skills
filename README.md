@@ -1,8 +1,16 @@
 # Saywise skills
 
-A Claude Code plugin that turns your coding sessions into draft "AI Work stories" for your [Saywise](https://saywise.com) profile, and measures how much you actually use AI. It works in Claude Code, Cowork, Claude Desktop, and Codex.
+A cross-compatible Claude Code and Codex plugin that turns your coding sessions into draft "AI Work stories" for your [Saywise](https://saywise.com) profile, and measures how much you actually use AI. The same skills and MCP connection work in Claude Code, Cowork, Claude Desktop, and Codex.
 
-Drafts are composed locally, in your voice, and shown to you before anything moves. They land on your profile as **private Suggested Drafts** over the bundled Saywise MCP connection: you accept or dismiss each one there, and nothing publishes until you do. Say "don't submit" and nothing is sent at all. Usage stats are aggregate numbers only, submitted per tool and only when you confirm. Six skills, two slash commands.
+Drafts are composed locally, in your voice, and shown to you before anything moves. They land on your profile as **private Suggested Drafts** over the bundled Saywise MCP connection: you accept or dismiss each one there, and nothing publishes until you do. Say "don't submit" and nothing is sent at all. Usage stats are aggregate numbers only, submitted per tool and only when you confirm. Six shared skills, plus two Claude Code slash-command aliases.
+
+## Package layout
+
+- `.claude-plugin/` contains the Claude Code manifest and marketplace.
+- `.codex-plugin/` contains the native Codex manifest.
+- `.agents/plugins/marketplace.json` exposes the repository root as the Codex marketplace package.
+- `skills/`, `.mcp.json`, and `hooks/hooks.json` are shared by both hosts.
+- `AGENTS.md` is the canonical coding-agent guidance; `CLAUDE.md` imports it for Claude Code.
 
 ## The skills
 
@@ -19,32 +27,9 @@ Two hooks make `/saywise-scan` mostly run itself. When a session ends, a local s
 
 Fully unattended drafting is opt-in. After your first successful scan the skill offers auto-scan once; enable it and closing a session with queued work spawns a background scan, at most once every 6 hours, on that CLI's quota. Drafts land as Markdown files in `~/.claude/saywise/drafts/` — ask any session to submit the keepers. Set `autoScan` to `false` in `~/.claude/saywise/config.json` to go back to nudges.
 
-On Claude Code the hooks ship with the plugin. Codex CLI speaks the same hook contract but doesn't install plugin hooks, so wire them once in `~/.codex/hooks.json` (or an inline `[hooks]` table in `~/.codex/config.toml`), pointing at wherever `npx skills add saywise/skills` placed the scan skill:
+The hooks ship inside the plugin for both Claude Code and Codex. Codex asks you to review and trust bundled hooks after installation; until you approve them, Codex skips automatic queueing and nudges. The shared hook file uses `${CLAUDE_PLUGIN_ROOT}`, which both hosts provide for plugin compatibility. Its SessionEnd timeout is 3 seconds and the script typically finishes in under 100 ms.
 
-```json
-{
-  "hooks": {
-    "SessionEnd": [
-      {
-        "hooks": [
-          {
-            "type": "command",
-            "command": "node \"$HOME/.codex/skills/saywise-scan/scripts/enqueue-session.js\"",
-            "timeout": 3
-          }
-        ]
-      }
-    ],
-    "SessionStart": [
-      {
-        "hooks": [{ "type": "command", "command": "node \"$HOME/.codex/skills/saywise-scan/scripts/queue-nudge.js\"" }]
-      }
-    ]
-  }
-}
-```
-
-Codex caps SessionEnd hooks at 3 seconds; the script typically finishes in under 100 ms. Queue and state live in `~/.claude/saywise/`, shared across both hosts. On agents without hooks, run the scan skill manually or on a schedule (documented inside the skill).
+Queue and state live in `~/.claude/saywise/`, shared across both hosts. On agents without plugin-hook support, run the scan skill manually or on a schedule (documented inside the skill).
 
 ## Install
 
@@ -56,6 +41,15 @@ claude plugin install saywise-skills@saywise
 ```
 
 That covers the skills, commands, hooks, and the Saywise MCP server, on every surface that reads `~/.claude`: the CLI, the IDE extensions, and the Desktop app's Code tab. The first submission asks you to sign in — run `/mcp` and pick `Saywise`.
+
+**Codex CLI / desktop** — add the same repository as a Codex marketplace, then install the native plugin package:
+
+```bash
+codex plugin marketplace add saywise/skills
+codex plugin add saywise-skills@saywise
+```
+
+Start a new task after installation and approve the bundled hooks when Codex presents the trust review. The Saywise MCP connection authenticates on first use; you can also run `codex mcp login Saywise` explicitly.
 
 **Any agent** — the skills also install standalone into 25+ agents (Cursor, Copilot, Gemini CLI, …) via [skills.sh](https://skills.sh):
 
@@ -69,7 +63,7 @@ npx skills add saywise/skills
 
 > "Write this session up for my Saywise."
 
-Or directly: `/saywise-stories` for the current session, `/saywise-scan` for recent ones, `/saywise-usage` for the numbers.
+Plain-language requests work on every host. In Claude Code, invoke `/saywise-stories`, `/saywise-scan`, or `/saywise-usage`; in Codex, invoke `$saywise-stories`, `$saywise-scan`, or `$saywise-usage`.
 
 ## Privacy
 

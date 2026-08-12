@@ -83,7 +83,7 @@ If yes, write `{ "autoScan": true }` to `~/.claude/saywise/config.json` (merge i
 
 ## Running this periodically
 
-On Claude Code (bundled with the plugin) and Codex CLI (wired per the README) the hooks already handle cadence: SessionEnd queues story-worthy conversations, SessionStart reports the count, and the opt-in auto-scan (above) drafts unattended. Elsewhere, any scheduler that can run the CLI works — for example a weekly cron entry:
+On Claude Code and Codex CLI, the hooks bundled with the plugin handle cadence after the user trusts them: SessionEnd queues story-worthy conversations, SessionStart reports the count, and the opt-in auto-scan (above) drafts unattended. Elsewhere, any scheduler that can run the CLI works — for example a weekly cron entry:
 
 ```cron
 0 18 * * 5 SAYWISE_SCAN_RUN=1 claude -p "/saywise-scan"
