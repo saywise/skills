@@ -1,0 +1,4 @@
+interface:
+  display_name: "Unslop"
+  short_description: "Remove generic AI-writing patterns from prose"
+  default_prompt: "Use $unslop to edit this text so it keeps my voice and loses generic AI-writing patterns."

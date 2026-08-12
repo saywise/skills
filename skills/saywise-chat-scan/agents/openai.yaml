@@ -1,0 +1,11 @@
+interface:
+  display_name: "Saywise Chat Scan"
+  short_description: "Find story-worthy work in recent chats"
+  default_prompt: "Use $saywise-chat-scan to find recent chats worth turning into Saywise drafts."
+dependencies:
+  tools:
+    - type: "mcp"
+      value: "Saywise"
+      description: "Saywise MCP server for private Suggested Drafts"
+      transport: "streamable_http"
+      url: "https://saywise.com/api/mcp/v1"

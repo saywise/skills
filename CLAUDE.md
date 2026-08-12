@@ -1,21 +1,31 @@
 # CLAUDE.md
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+This is the shared contributor guide for Claude Code, Codex, ChatGPT, and other
+agents working in this repository. `AGENTS.md` points Codex here so the product and
+privacy contracts have one canonical source.
 
 ## What this repo is
 
-The **saywise-skills** Claude Code plugin, distributed from this repo acting as its own marketplace (named `saywise`). It turns Claude Code / Cowork / Claude Desktop / Codex sessions into draft "AI Work stories" for the user's Saywise profile, and measures local AI usage. There is no build system, no package.json, and no test suite — the deliverables are Markdown skill files, two slash commands, two small Node hook scripts, and one bundled stats script.
+The **saywise-skills** universal plugin, distributed from this repo through OpenAI
+and Claude marketplace metadata (both named `saywise`). It turns ChatGPT / Codex /
+Claude Code / Cowork / Claude Desktop sessions into draft "AI Work stories" for the
+user's Saywise profile, and measures local AI usage. There is no build system,
+package.json, or test suite — the deliverables are Markdown skill files, OpenAI and
+Claude plugin manifests, two Claude slash commands, two small Node hook scripts, and
+one bundled stats script.
 
 **Composition and measurement are local; the profile is where drafts get curated.** Skills compose drafts and compute stats locally and always show them to the user. The sanctioned network paths all run through the `Saywise` MCP server (registered in `.mcp.json`): interactive story runs create their *composed* drafts via `saywise_create_suggested_drafts` in `drafts` mode (the agent writes the story), without an extra chat confirmation — drafts land private as Suggested Drafts and the owner accepts or dismisses each on their profile before anything publishes; that accept step is the consent model, and an explicit "don't submit" from the user always wins. The tool's `content` mode (Saywise writes the story server-side) ships raw session material and runs only on the user's explicit ask, never as a fallback. `saywise-usage` submits its scanner payloads verbatim via `saywise_submit_usage_stats`, gated on explicit per-run confirmation. Unattended runs never call MCP tools. The manual composer (saywise.com/posts/new) is deprecated and there is no self-serve Stories page — the Suggested Drafts flow is the only path to a profile; never link or suggest the composer. This is a hard product constraint, restated in every skill — preserve all of it in any change.
 
 ## Layout
 
-- `.claude-plugin/plugin.json` — plugin manifest (name, version). `marketplace.json` — makes this repo installable as the `saywise` marketplace.
+- `.codex-plugin/plugin.json` — OpenAI plugin manifest and install-surface metadata.
+- `.agents/plugins/marketplace.json` — OpenAI repo marketplace entry used by ChatGPT desktop and Codex CLI.
+- `.claude-plugin/plugin.json` — Claude plugin manifest (name, version). `marketplace.json` makes this repo installable as the Claude `saywise` marketplace.
 - `.mcp.json` — registers the OAuth-protected `Saywise` MCP server (https://saywise.com/api/mcp/v1). At plugin root it is auto-discovered on plugin install; used only for the opt-in submissions (suggested drafts + usage stats).
-- `skills/<name>/SKILL.md` — the six skills (see relationships below).
+- `skills/<name>/SKILL.md` — the six skills (see relationships below); `agents/openai.yaml` in each folder provides OpenAI UI metadata and MCP dependencies.
 - `commands/*.md` — the two slash commands (`/saywise-scan`, `/saywise-usage`); each is a thin wrapper that loads its skill and adds delivery instructions. Skills carry the real logic. `saywise-stories` has no command wrapper — it's invoked by asking or directly as a skill.
-- `hooks/hooks.json` — SessionEnd/SessionStart hooks bundled with the plugin, pointing at scripts inside `skills/saywise-scan/scripts/` via `${CLAUDE_PLUGIN_ROOT}`.
-- `.github/workflows/release-skills.yml` — on a published GitHub release, zips the whole plugin as `saywise-plugin.zip` and attaches it to the release (for Claude Desktop's plugin-upload path).
+- `hooks/hooks.json` — SessionEnd/SessionStart hooks bundled with the plugin, pointing at scripts inside `skills/saywise-scan/scripts/` via Codex's `${PLUGIN_ROOT}` with `${CLAUDE_PLUGIN_ROOT}` as the Claude compatibility fallback.
+- `.github/workflows/release-skills.yml` — on a published GitHub release, zips the whole universal plugin as `saywise-plugin.zip` and attaches it to the release.
 
 ## How the skills relate
 
@@ -30,7 +40,7 @@ The automatic-scanning flow spans three pieces that must stay in sync:
 
 1. **SessionEnd** → `enqueue-session.js` pre-screens the ended transcript with cheap heuristics (size ≥ 20 KB + format markers in the first 1 MB — no LLM, no network) and queues story-worthy ones in `~/.claude/saywise/scan-queue.json`. If `config.json` has `{"autoScan": true}`, any session end with a non-empty queue spawns a detached headless scan, debounced to once per 6 hours; the debounce stamp is written only after the spawn confirms, so a missing CLI doesn't burn the window.
 2. **SessionStart** → `queue-nudge.js` emits a one-line `additionalContext` nudge when the queue is non-empty (silent otherwise).
-3. **`/saywise-scan`** consumes the queue, triages with judgment, drafts, then updates `scan-state.json` (high-water mark + `draftedSessions` dedupe list) and drains the queue while preserving `lastAutoScanAt`.
+3. **`saywise-scan`** consumes the queue, triages with judgment, drafts, then updates `scan-state.json` (high-water mark + `draftedSessions` dedupe list) and drains the queue while preserving `lastAutoScanAt`.
 
 Shared state lives in `~/.claude/saywise/` (`scan-queue.json`, `scan-state.json`, `config.json`, `drafts/`) across both hosts. The scripts serve Claude Code *and* Codex CLI: the host is inferred from the transcript path (`~/.claude/projects` vs `~/.codex/sessions`), and hook output is emitted in both hosts' shapes. `SAYWISE_SCAN_RUN=1` marks a scan's own session so the hooks stand down for it.
 
@@ -42,7 +52,17 @@ The stats scripts and skills read **aggregate signals only**: timestamps, messag
 
 ## Developing and testing
 
-No build/lint/test commands. To exercise the scripts directly:
+There is no build system. Validate OpenAI packaging and every skill, then exercise
+the scripts directly:
+
+```bash
+python3 ~/.codex/skills/.system/plugin-creator/scripts/validate_plugin.py .
+for skill in skills/*; do
+  python3 ~/.codex/skills/.system/skill-creator/scripts/quick_validate.py "$skill"
+done
+```
+
+Script smoke tests:
 
 ```bash
 node skills/saywise-usage/scripts/usage-scan.cjs                    # prints the aggregate JSON
@@ -51,11 +71,13 @@ echo '{"transcript_path":"'$HOME'/.claude/projects/<dir>/<id>.jsonl"}' \
 node skills/saywise-scan/scripts/queue-nudge.js                     # prints the nudge if queue is non-empty
 ```
 
-Skills themselves are tested by installing the plugin and invoking them (`/saywise-scan`, `/saywise-usage`, or `saywise-stories` by asking or direct skill invocation).
+Skills themselves are tested by installing the plugin and invoking them
+(`$saywise-scan` / `$saywise-usage` in Codex, their slash-command forms in Claude,
+or `saywise-stories` by asking or direct skill invocation).
 
 ## Conventions
 
 - Conventional-commit messages (`feat:`, `fix:`, `chore:`, `docs:`, `refactor:`), with the new plugin version in parentheses when a change bumps it, e.g. `feat: unslop — shared anti-slop style contract (0.9.0)`.
-- Version lives in `.claude-plugin/plugin.json`; releases are GitHub releases (the workflow attaches the zip).
-- Keep README.md, plugin.json/marketplace.json descriptions, and the SKILL.md descriptions telling the same story when behavior changes — they are the user-facing spec.
+- Version lives in both `.codex-plugin/plugin.json` and `.claude-plugin/plugin.json`; releases are GitHub releases (the workflow attaches the zip).
+- Keep README.md, both plugin manifests/marketplaces, every `agents/openai.yaml`, and the SKILL.md descriptions telling the same story when behavior changes — they are the user-facing spec.
 - SKILL.md files follow a common shape: frontmatter `description` written as routing guidance ("Use this when…"), then "When to trigger", the steps, and a "Common pitfalls" section. Match it for new skills.

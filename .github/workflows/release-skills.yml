@@ -1,8 +1,7 @@
-# Attaches the whole-plugin zip to every GitHub release, for the Plugins page's
-# upload option on Claude Desktop / claude.ai (Settings → Customize → Plugins).
-# Folder-wrapped — the layout git-marketplace installs already unpack. No
-# per-skill zips: anyone wanting the Settings → Capabilities → Skills upload can
-# zip a skills/<name> folder from the repo as-is.
+# Attaches the universal ChatGPT/Codex/Claude plugin zip to every GitHub release.
+# Folder-wrapped so plugin upload/import paths receive both product manifests.
+# No per-skill zips: anyone wanting a standalone skill can zip a
+# skills/<name> folder from the repo as-is.
 name: Attach plugin zip to release
 
 on:

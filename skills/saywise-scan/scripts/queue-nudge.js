@@ -26,7 +26,7 @@ function count() {
 
 const n = count();
 if (n > 0) {
-  const context = `Saywise: ${n} story-worthy conversation${n === 1 ? '' : 's'} queued since the last scan. When it fits the flow of this session, offer to run the saywise-scan skill (/saywise-scan) to turn them into private drafts.`;
+  const context = `Saywise: ${n} story-worthy conversation${n === 1 ? '' : 's'} queued since the last scan. When it fits the flow of this session, offer to run the saywise-scan skill ($saywise-scan in Codex, /saywise-scan in Claude) to turn them into private drafts.`;
   process.stdout.write(
     JSON.stringify({
       additionalContext: context,

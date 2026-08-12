@@ -1,0 +1,41 @@
+{
+  "name": "saywise-skills",
+  "version": "0.19.0",
+  "description": "Turn AI sessions into private Saywise story drafts and measure Claude Code and Codex usage.",
+  "author": {
+    "name": "Saywise",
+    "url": "https://saywise.com"
+  },
+  "homepage": "https://saywise.com",
+  "repository": "https://github.com/saywise/skills",
+  "license": "MIT",
+  "keywords": [
+    "saywise",
+    "stories",
+    "ai work",
+    "usage analytics",
+    "chatgpt",
+    "codex",
+    "claude"
+  ],
+  "skills": "./skills/",
+  "mcpServers": "./.mcp.json",
+  "interface": {
+    "displayName": "Saywise",
+    "shortDescription": "AI work stories and measured usage",
+    "longDescription": "Turn ChatGPT, Codex, and Claude conversations into private Suggested Drafts for Saywise, and measure aggregate Claude Code and Codex usage locally before optional submission.",
+    "developerName": "Saywise",
+    "category": "Productivity",
+    "capabilities": [
+      "Interactive",
+      "Read",
+      "Write"
+    ],
+    "websiteURL": "https://saywise.com",
+    "defaultPrompt": [
+      "Turn this AI work into a private Saywise story draft.",
+      "Scan my recent AI conversations for work worth sharing.",
+      "Measure my Claude Code and Codex usage."
+    ]
+  }
+}

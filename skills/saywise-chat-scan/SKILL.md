@@ -1,22 +1,22 @@
 ---
 name: saywise-chat-scan
-description: Scans the user's recent chat conversations for story-worthy AI work and writes Saywise-ready story drafts for the ones they pick. Use on chat surfaces that have a conversation-history tool but no shell (Claude Desktop, claude.ai, or any chat assistant that keeps history); where shell commands run (Claude Code, Codex CLI, Cowork), use saywise-scan instead.
+description: Scans the user's recent chat conversations for story-worthy AI work and writes Saywise-ready story drafts for the ones they pick. Use on chat surfaces that have conversation-history or thread-list tools but no local transcript access (ChatGPT Chat/Work, Claude Desktop/claude.ai, or another chat assistant with history); where local shell commands can read Claude Code or Codex logs, use saywise-scan instead.
 ---
 
 # Scanning recent chats for Saywise stories
 
 The chat-surface counterpart of `saywise-scan`. That skill sweeps local coding-agent
 transcripts (Claude Code, Codex CLI); chat surfaces have no local logs, so this one
-reviews the user's recent conversations with whatever chat-history tool the surface
-provides and writes story drafts from the ones the user selects.
+reviews the user's recent conversations with whatever conversation-history or thread-list
+tool the surface provides and writes story drafts from the ones the user selects.
 
 ## When to trigger
 
 Only on an explicit ask: "scan my recent chats for Saywise stories", "anything in my
-chat history worth posting?". Never spontaneously. If you can run shell commands
-(Claude Code, Codex CLI, Cowork), use `saywise-scan` instead — local transcripts beat
-chat recall. If this surface has no chat-history tool, say chats can't be scanned here
-and stop.
+chat history worth posting?". Never spontaneously. If you can read local Claude Code or
+Codex transcripts, use `saywise-scan` instead — local transcripts beat chat recall. If
+this surface has no conversation-history or thread-list tool, say chats can't be
+scanned here and stop.
 
 ## What counts as story-worthy
 
@@ -30,8 +30,8 @@ mention it in the shortlist at all.
 
 Ask (or infer from the request) the window to scan — default the last 30 days.
 
-Walk the chat-history tool **page by page** — one call returns one page of recent
-chats, never the whole history:
+Walk the conversation-history or thread-list tool **page by page** — one call returns
+one page of recent chats, never the whole history:
 
 1. Call it newest-first and note the oldest timestamp on the page.
 2. While that timestamp is still inside the window, call again with the tool's

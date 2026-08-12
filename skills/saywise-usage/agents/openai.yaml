@@ -1,0 +1,11 @@
+interface:
+  display_name: "Saywise Usage"
+  short_description: "Measure local Claude Code and Codex usage"
+  default_prompt: "Use $saywise-usage to measure my local Claude Code and Codex activity."
+dependencies:
+  tools:
+    - type: "mcp"
+      value: "Saywise"
+      description: "Saywise MCP server for optional usage submission"
+      transport: "streamable_http"
+      url: "https://saywise.com/api/mcp/v1"

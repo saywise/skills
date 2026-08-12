@@ -1,0 +1,20 @@
+{
+  "name": "saywise",
+  "interface": {
+    "displayName": "Saywise"
+  },
+  "plugins": [
+    {
+      "name": "saywise-skills",
+      "source": {
+        "source": "url",
+        "url": "https://github.com/saywise/skills.git"
+      },
+      "policy": {
+        "installation": "AVAILABLE",
+        "authentication": "ON_INSTALL"
+      },
+      "category": "Productivity"
+    }
+  ]
+}
