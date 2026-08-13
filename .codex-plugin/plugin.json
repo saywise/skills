@@ -36,6 +36,8 @@
       "Turn this AI work into a private Saywise story draft.",
       "Scan my recent AI conversations for work worth sharing.",
       "Measure my Claude Code and Codex usage."
-    ]
+    ],
+    "composerIcon": "./assets/icon.png",
+    "logo": "./assets/icon.png"
   }
 }
