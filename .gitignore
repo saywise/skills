@@ -1,2 +1,4 @@
 .mise.toml
 dist/
+# Local Codex app state (environments/environment.toml holds credentials — never commit)
+.codex/

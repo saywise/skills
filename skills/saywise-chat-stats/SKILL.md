@@ -24,10 +24,12 @@ scan script is not runnable.
 
 ## Measurement only
 
-This skill **counts and displays** — it uploads nothing. Chat surfaces have no
-submission path; if the user asks to put the numbers on their Saywise profile, point
-them at running `/saywise-usage` in Claude Code (which can submit via the saywise MCP
-server) or quoting the numbers in a post themselves.
+This skill **counts and displays** — it uploads nothing. Saywise's usage-submission
+schema requires fields chat history cannot measure (tokens, tool calls, active hours),
+so no honest payload can be built here — never submit zeros or estimates in their
+place, even if a Saywise MCP server happens to be connected on this surface. If the
+user asks to put numbers on their Saywise profile, point them at running
+`/saywise-usage` in Claude Code — it measures the full payload and can submit it.
 
 ## The privacy contract (non-negotiable)
 
@@ -64,8 +66,9 @@ streaks are not measurable from chat history — omit them; never fabricate.
 
 - **Don't estimate.** Only chats actually returned by the tool count. No "probably
   around a thousand".
-- **Don't submit anywhere.** There is no usage endpoint; do not call any tool with
-  these numbers.
+- **Don't submit anywhere.** The submit schema requires token, tool-call, and hours
+  fields this surface can't measure — a payload padded with zeros is fabricated. Do
+  not call any tool with these numbers.
 - **Don't leak titles or snippets** — not in the summary, not in conversation.
 - **Don't run this in Claude Code/Cowork** — `saywise-usage` exists there and measures
   more, honestly.

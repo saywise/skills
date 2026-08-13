@@ -1,6 +1,6 @@
 ---
 name: saywise-usage
-description: Use this when the user asks to measure or verify their AI-tool usage stats. Computes aggregate-only stats (sessions, tokens split by input/output/cache, tool calls incl. subagent/MCP/skill/plan-mode/web counters, active hours, daily activity, streaks, models) from local Claude Code and Codex CLI session logs, shows them, and — only on explicit confirmation — submits the per-source payloads via the saywise MCP server's saywise_submit_usage_stats tool. On chat surfaces (Claude Desktop / claude.ai) use saywise-chat-stats instead.
+description: Use this when the user asks to measure or verify their AI-tool usage stats. Computes aggregate-only stats (sessions, tokens split by input/output/cache, tool calls incl. subagent/MCP/skill/plan-mode/web counters, active hours, daily activity, streaks, models) from local Claude Code and Codex CLI session logs, shows them, and — only on explicit confirmation — submits the per-source payloads via the Saywise MCP server's saywise_submit_usage_stats tool. On chat surfaces (Claude Desktop / claude.ai) use saywise-chat-stats instead.
 ---
 
 # Measuring AI usage stats
@@ -20,9 +20,10 @@ Do NOT trigger spontaneously, without the user asking.
 
 Measurement stays on the user's machine. The scan reads **aggregate signals only** —
 from both log formats: timestamps, message and event types, model ids, token-usage
-counters, and tool-call names — never prompts, conversation content, tool arguments,
-project names, cwd, or file paths. Do not read into the logs beyond what the script
-extracts. The only thing that may ever leave the machine is the script's JSON output,
+counters, and tool-call names — never prompts, conversation content, tool arguments
+(the one exception: the `run_in_background` boolean on subagent launches, read to
+count background runs), project names, cwd, or file paths. Do not read into the logs
+beyond what the script extracts. The only thing that may ever leave the machine is the script's JSON output,
 and only in Step 3, on the user's explicit confirmation.
 
 ## What's measurable where
@@ -41,10 +42,10 @@ reports that source alone — present what it found without apology.
 Run the script bundled with this skill — in Claude Code:
 
 ```bash
-node "${CLAUDE_SKILL_DIR}/scripts/usage-scan.cjs"
+node "${CLAUDE_PLUGIN_ROOT}/skills/saywise-usage/scripts/usage-scan.cjs"
 ```
 
-(In other hosts, `scripts/usage-scan.cjs` sits next to this SKILL.md in the installed skill directory — run it from there.) Do not modify it and do not improvise your own parser — deterministic numbers are the point. It reads only timestamps, message/event types, model ids, per-response token counters, and tool names from the two log roots (including Claude Code's per-session subagent transcripts); never message content or tool inputs.
+(In other hosts — or wherever `CLAUDE_PLUGIN_ROOT` is unset — `scripts/usage-scan.cjs` sits next to this SKILL.md in the installed skill directory; run it from there.) Do not modify it and do not improvise your own parser — deterministic numbers are the point. It reads only timestamps, message/event types, model ids, per-response token counters, and tool names from the two log roots (including Claude Code's per-session subagent transcripts); never message content, and from tool inputs only the single `run_in_background` boolean on subagent launches (to count background runs) — nothing else.
 
 The script prints `{"payloads": [...]}` — one payload per source with data, each
 shaped exactly as the Saywise submit tool expects (`source`, `scannerVersion`,
@@ -68,15 +69,15 @@ After showing the stats, offer once: "Want me to submit these stats to your Sayw
 profile?" Submit **only** if the user explicitly says yes this run — a previous yes
 does not carry over, and never submit unprompted.
 
-To submit, call the saywise MCP server's **`saywise_submit_usage_stats`** tool once
+To submit, call the Saywise MCP server's **`saywise_submit_usage_stats`** tool once
 per payload the user approved, passing that payload object **exactly as the script
 printed it** — never edited, rounded, merged, or extended (the server verifies
 cross-field invariants and rejects altered payloads). Re-submitting for the same
 source updates the stored stats, so repeat runs are safe. Echo the server's
 confirmation back to the user.
 
-- If the saywise MCP server is not connected or not authenticated, tell the user to
-  run `/mcp`, pick `saywise`, and complete the browser sign-in — then offer again.
+- If the Saywise MCP server is not connected or not authenticated, tell the user to
+  run `/mcp`, pick `Saywise`, and complete the browser sign-in — then offer again.
 - The server also exposes `saywise_get_usage_stats_instructions`, which returns its
   own Claude-Code-only scanner. If `saywise_submit_usage_stats` rejects this skill's
   payload (schema drift), fall back to following those instructions for the
@@ -90,7 +91,7 @@ confirmation back to the user.
 - **Don't improvise the parser.** Run the script as given — hand-rolled one-liners produce inconsistent numbers between runs (token counting in particular needs the script's per-response dedupe).
 - **Don't submit without an explicit yes in this conversation.** No standing consent, no "they said yes last week", no submitting because the MCP server happens to be connected.
 - **Don't send anything but the script's payloads, verbatim.** Not a summary, not an enriched version, never merged across sources, and never any other data from the session. The server's invariant checks treat an edited payload as fabricated and reject it.
-- **Don't retry a failed submission through a non-MCP channel.** The saywise MCP server is the only sanctioned path; if it fails, report the error and stop.
+- **Don't retry a failed submission through a non-MCP channel.** The Saywise MCP server is the only sanctioned path; if it fails, report the error and stop.
 - **Don't inflate.** If the numbers look small, they're small. Never adjust them to look better.
 - **Don't explain away the token split.** `totalTokens` is exactly input + output + cache read + cache write. All four are true — present them as-is.
 - **Don't scan other tools' logs (Cursor, Gemini CLI, …) with ad-hoc parsers.** Claude Code and Codex CLI only for now; say so if asked.

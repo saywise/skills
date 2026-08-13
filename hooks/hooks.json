@@ -6,7 +6,7 @@
           {
             "type": "command",
             "command": "node \"${CLAUDE_PLUGIN_ROOT}/skills/saywise-scan/scripts/enqueue-session.js\"",
-            "timeout": 15
+            "timeout": 3
           }
         ]
       }
