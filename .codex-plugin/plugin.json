@@ -34,6 +34,8 @@
       "Write this session up for my Saywise profile.",
       "Scan my recent coding sessions for story-worthy work.",
       "Measure my Claude Code and Codex usage."
-    ]
+    ],
+    "composerIcon": "./assets/icon.png",
+    "logo": "./assets/icon.png"
   }
 }
